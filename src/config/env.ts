@@ -7,7 +7,8 @@ function required(name: string): string {
 }
 
 export const env = {
-  port: parseInt(process.env.PORT || '8080', 10),
+  // ⚡️ fallback 8000 kar diya (Koyeb expects 8000)
+  port: parseInt(process.env.PORT || '8000', 10),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   mongoUri: required('MONGO_URI'),
   jwtSecret: required('JWT_SECRET'),

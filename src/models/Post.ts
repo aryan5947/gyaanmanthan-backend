@@ -1,10 +1,14 @@
-import { Schema, model, Document, Types } from 'mongoose';
+import { Schema, model, Document, Types } from "mongoose";
 
 export interface IPost extends Document {
-  author: Types.ObjectId;
+  title: string;
+  description: string;
   content: string;
-  images: string[];
+  category: string;
   tags: string[];
+  images: string[];
+  authorId: Types.ObjectId;
+  authorName: string;
   stats: {
     views: number;
     likes: number;
@@ -15,10 +19,18 @@ export interface IPost extends Document {
 
 const postSchema = new Schema<IPost>(
   {
-    author: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    content: { type: String, required: true },
-    images: [{ type: String }],
+    title: { type: String, required: true, trim: true },
+    description: { type: String, required: true, trim: true },
+    content: { type: String, required: true }, // can be JSON string or plain text
+    category: { type: String, default: "General", index: true },
     tags: [{ type: String, index: true }],
+    images: [{ type: String }],
+
+    // ✅ Author Info
+    authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    authorName: { type: String, required: true }, // store name for quick access
+
+    // ✅ Stats
     stats: {
       views: { type: Number, default: 0 },
       likes: { type: Number, default: 0 },
@@ -27,4 +39,4 @@ const postSchema = new Schema<IPost>(
   { timestamps: true }
 );
 
-export const Post = model<IPost>('Post', postSchema);
+export const Post = model<IPost>("Post", postSchema);

@@ -9,6 +9,7 @@ export interface IPost extends Document {
   images: string[];
   authorId: Types.ObjectId;
   authorName: string;
+  authorAvatar?: string; // ✅ DP bhi store karenge
   stats: {
     views: number;
     likes: number;
@@ -29,6 +30,7 @@ const postSchema = new Schema<IPost>(
     // ✅ Author Info
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     authorName: { type: String, required: true }, // store name for quick access
+    authorAvatar: { type: String }, // ✅ DP bhi save hoga
 
     // ✅ Stats
     stats: {

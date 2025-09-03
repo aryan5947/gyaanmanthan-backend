@@ -38,6 +38,7 @@ export const createPost = async (req: Request, res: Response) => {
     // ✅ user info (from auth middleware)
     const userId = req.user?.id;
     const userName = req.user?.name || "Anonymous";
+    const userAvatar = req.user?.avatarUrl || ""; // ✅ avatar le liya
 
     const post = await Post.create({
       title,
@@ -52,6 +53,7 @@ export const createPost = async (req: Request, res: Response) => {
       images,
       authorId: userId,
       authorName: userName,
+      authorAvatar: userAvatar, // ✅ yaha save ho jayega
     });
 
     return res.status(201).json({ post });

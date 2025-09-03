@@ -12,6 +12,7 @@ import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import postRoutes from './routes/postRoutes';
 import adRoutes from './routes/adRoutes';
+import commentRoutes from "./routes/commentRoutes";
 import affiliateRoutes from './routes/affiliateRoutes';
 import walletRoutes from './routes/walletRoutes';
 
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/ads', adRoutes);
+app.use("/api/comments", commentRoutes);
 app.use('/api/affiliate', affiliateRoutes);
 app.use('/api/wallet', walletRoutes);
 

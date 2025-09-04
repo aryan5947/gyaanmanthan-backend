@@ -16,7 +16,7 @@ export const addComment = async (req: Request, res: Response) => {
       postId,
       authorId: req.user._id,
       authorName: req.user.name,
-      authorAvatar: req.user.avatarUrl ?? undefined, // ✅ null → undefined
+      authorAvatar: req.user.avatarUrl ?? undefined,
       text,
       likes: 0,
       likedBy: [],
@@ -24,7 +24,7 @@ export const addComment = async (req: Request, res: Response) => {
       createdAt: new Date(),
     });
 
-    return res.status(201).json(comment);
+    return res.status(201).json(comment.toObject());
   } catch (err: any) {
     console.error("Error adding comment:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -47,7 +47,7 @@ export const addReply = async (req: Request, res: Response) => {
     comment.replies.push({
       authorId: req.user._id,
       authorName: req.user.name,
-      authorAvatar: req.user.avatarUrl ?? undefined, // ✅ null → undefined
+      authorAvatar: req.user.avatarUrl ?? undefined,
       text,
       likes: 0,
       likedBy: [],
@@ -55,7 +55,7 @@ export const addReply = async (req: Request, res: Response) => {
     });
 
     await comment.save();
-    return res.status(201).json(comment);
+    return res.status(201).json(comment.toObject());
   } catch (err: any) {
     console.error("Error adding reply:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -115,7 +115,7 @@ export const toggleLikeReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (!Array.isArray(reply.likedBy)) {
@@ -137,7 +137,7 @@ export const toggleLikeReply = async (req: Request, res: Response) => {
     }
 
     await comment.save();
-    return res.json(reply);
+    return res.json(reply.toObject());
   } catch (err: any) {
     console.error("Error toggling reply like:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -162,7 +162,7 @@ export const editComment = async (req: Request, res: Response) => {
     comment.text = text;
     await comment.save();
 
-    return res.json(comment);
+    return res.json(comment.toObject());
   } catch (err: any) {
     console.error("Error editing comment:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -180,7 +180,7 @@ export const editReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (reply.authorId.toString() !== req.user._id.toString()) {
@@ -190,7 +190,7 @@ export const editReply = async (req: Request, res: Response) => {
     reply.text = text;
     await comment.save();
 
-    return res.json(reply);
+    return res.json(reply.toObject());
   } catch (err: any) {
     console.error("Error editing reply:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -228,7 +228,7 @@ export const deleteReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (reply.authorId.toString() !== req.user._id.toString()) {
@@ -249,9 +249,22 @@ export const deleteReply = async (req: Request, res: Response) => {
 export const getCommentsByPost = async (req: Request, res: Response) => {
   try {
     const { postId } = req.params;
-    const comments = await Comment.find({ postId }).sort({ createdAt: -1 });
+    const { lastId, limit = 20 } = req.query as any;
 
-    return res.json(comments);
+    const query: any = { postId };
+    if (lastId) {
+      query._id = { $lt: lastId }; // ✅ cursor-based pagination
+    }
+
+    const comments = await Comment.find(query)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .lean();
+
+    return res.json({
+      comments,
+      nextCursor: comments.length > 0 ? comments[comments.length - 1]._id : null,
+    });
   } catch (err: any) {
     console.error("Error fetching comments:", err);
     return res.status(500).json({ message: "Server error", error: err.message });

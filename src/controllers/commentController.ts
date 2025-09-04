@@ -1,23 +1,22 @@
 import { Request, Response } from "express";
 import { Comment } from "../models/Comment";
 import { Types } from "mongoose";
-import { connectDB } from "../config/db";
 
 // ---------------- ADD COMMENT ----------------
 export const addComment = async (req: Request, res: Response) => {
   try {
-    await connectDB();
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { text } = req.body;
     const { postId } = req.params;
+
     if (!text) return res.status(400).json({ message: "Text is required" });
 
     const comment = await Comment.create({
       postId,
       authorId: req.user._id,
       authorName: req.user.name,
-      authorAvatar: req.user.avatarUrl ?? undefined,
+      authorAvatar: req.user.avatarUrl ?? undefined, // ✅ null → undefined
       text,
       likes: 0,
       likedBy: [],
@@ -25,7 +24,7 @@ export const addComment = async (req: Request, res: Response) => {
       createdAt: new Date(),
     });
 
-    return res.status(201).json(comment.toObject());
+    return res.status(201).json(comment);
   } catch (err: any) {
     console.error("Error adding comment:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -35,30 +34,28 @@ export const addComment = async (req: Request, res: Response) => {
 // ---------------- ADD REPLY ----------------
 export const addReply = async (req: Request, res: Response) => {
   try {
-    await connectDB();
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { text } = req.body;
     const { commentId } = req.params;
+
     if (!text) return res.status(400).json({ message: "Text is required" });
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = {
+    comment.replies.push({
       authorId: req.user._id,
       authorName: req.user.name,
-      authorAvatar: req.user.avatarUrl ?? undefined,
+      authorAvatar: req.user.avatarUrl ?? undefined, // ✅ null → undefined
       text,
       likes: 0,
       likedBy: [],
       createdAt: new Date(),
-    };
+    });
 
-    comment.replies.push(reply);
     await comment.save();
-
-    return res.status(201).json(reply);
+    return res.status(201).json(comment);
   } catch (err: any) {
     console.error("Error adding reply:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -68,7 +65,6 @@ export const addReply = async (req: Request, res: Response) => {
 // ---------------- TOGGLE LIKE COMMENT ----------------
 export const toggleLikeComment = async (req: Request, res: Response) => {
   try {
-    await connectDB();
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId } = req.params;
@@ -77,7 +73,9 @@ export const toggleLikeComment = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    if (!Array.isArray(comment.likedBy)) comment.likedBy = [];
+    if (!Array.isArray(comment.likedBy)) {
+      comment.likedBy = [];
+    }
 
     const hasLiked = comment.likedBy.some(
       (id: Types.ObjectId) => id.toString() === userId
@@ -94,7 +92,12 @@ export const toggleLikeComment = async (req: Request, res: Response) => {
     }
 
     await comment.save();
-    return res.json({ _id: comment._id, likes: comment.likes, likedBy: comment.likedBy });
+
+    return res.json({
+      _id: comment._id,
+      likes: comment.likes,
+      likedBy: comment.likedBy,
+    });
   } catch (err: any) {
     console.error("Error toggling like:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -104,7 +107,6 @@ export const toggleLikeComment = async (req: Request, res: Response) => {
 // ---------------- TOGGLE LIKE REPLY ----------------
 export const toggleLikeReply = async (req: Request, res: Response) => {
   try {
-    await connectDB();
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId, replyId } = req.params;
@@ -113,10 +115,12 @@ export const toggleLikeReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
-    if (!Array.isArray(reply.likedBy)) reply.likedBy = [];
+    if (!Array.isArray(reply.likedBy)) {
+      reply.likedBy = [];
+    }
 
     const hasLiked = reply.likedBy.some(
       (id: Types.ObjectId) => id.toString() === userId
@@ -143,7 +147,6 @@ export const toggleLikeReply = async (req: Request, res: Response) => {
 // ---------------- EDIT COMMENT ----------------
 export const editComment = async (req: Request, res: Response) => {
   try {
-    await connectDB();
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId } = req.params;
@@ -158,6 +161,7 @@ export const editComment = async (req: Request, res: Response) => {
 
     comment.text = text;
     await comment.save();
+
     return res.json(comment);
   } catch (err: any) {
     console.error("Error editing comment:", err);
@@ -168,7 +172,6 @@ export const editComment = async (req: Request, res: Response) => {
 // ---------------- EDIT REPLY ----------------
 export const editReply = async (req: Request, res: Response) => {
   try {
-    await connectDB();
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId, replyId } = req.params;
@@ -177,7 +180,7 @@ export const editReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (reply.authorId.toString() !== req.user._id.toString()) {
@@ -186,6 +189,7 @@ export const editReply = async (req: Request, res: Response) => {
 
     reply.text = text;
     await comment.save();
+
     return res.json(reply);
   } catch (err: any) {
     console.error("Error editing reply:", err);
@@ -196,7 +200,6 @@ export const editReply = async (req: Request, res: Response) => {
 // ---------------- DELETE COMMENT ----------------
 export const deleteComment = async (req: Request, res: Response) => {
   try {
-    await connectDB();
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId } = req.params;
@@ -218,7 +221,6 @@ export const deleteComment = async (req: Request, res: Response) => {
 // ---------------- DELETE REPLY ----------------
 export const deleteReply = async (req: Request, res: Response) => {
   try {
-    await connectDB();
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId, replyId } = req.params;
@@ -226,7 +228,7 @@ export const deleteReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (reply.authorId.toString() !== req.user._id.toString()) {
@@ -239,38 +241,19 @@ export const deleteReply = async (req: Request, res: Response) => {
     return res.json({ message: "Reply deleted" });
   } catch (err: any) {
     console.error("Error deleting reply:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
 // ---------------- GET COMMENTS FOR POST ----------------
 export const getCommentsByPost = async (req: Request, res: Response) => {
   try {
-    await connectDB();
-
     const { postId } = req.params;
-    const { lastId, limit = 20 } = req.query as any;
+    const comments = await Comment.find({ postId }).sort({ createdAt: -1 });
 
-    const query: any = { postId };
-    if (lastId) {
-      query._id = { $lt: lastId }; // cursor-based pagination
-    }
-
-    const comments = await Comment.find(query)
-      .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .lean(); // faster JSON
-
-    return res.json({
-      comments,
-      nextCursor: comments.length > 0 ? comments[comments.length - 1]._id : null,
-    });
+    return res.json(comments);
   } catch (err: any) {
     console.error("Error fetching comments:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };

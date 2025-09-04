@@ -15,10 +15,14 @@ export const addComment = async (req: Request, res: Response) => {
       postId,
       authorId: req.user._id,
       authorName: req.user.name,
+      authorAvatar: req.user.avatarUrl || null, // ✅ DP add
       text,
+      likes: 0,
+      replies: [],
+      createdAt: new Date()
     });
 
-    return res.status(201).json({ comment });
+    return res.status(201).json(comment); // ✅ direct object
   } catch (err: any) {
     console.error("Error adding comment:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -41,20 +45,21 @@ export const addReply = async (req: Request, res: Response) => {
     comment.replies.push({
       authorId: req.user._id,
       authorName: req.user.name,
+      authorAvatar: req.user.avatarUrl, // ✅ clean and safe
       text,
       likes: 0,
       createdAt: new Date(),
     });
 
     await comment.save();
-    return res.status(201).json({ comment });
+    return res.status(201).json(comment);
   } catch (err: any) {
     console.error("Error adding reply:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-// ---------------- LIKE / UNLIKE COMMENT ----------------
+// ---------------- LIKE COMMENT ----------------
 export const likeComment = async (req: Request, res: Response) => {
   try {
     const { commentId } = req.params;
@@ -89,7 +94,7 @@ export const editComment = async (req: Request, res: Response) => {
     comment.text = text;
     await comment.save();
 
-    return res.json({ message: "Comment updated", comment });
+    return res.json(comment);
   } catch (err: any) {
     console.error("Error editing comment:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -123,7 +128,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     const { postId } = req.params;
     const comments = await Comment.find({ postId }).sort({ createdAt: -1 });
 
-    return res.json({ comments });
+    return res.json(comments); // ✅ direct array
   } catch (err: any) {
     console.error("Error fetching comments:", err);
     return res.status(500).json({ message: "Server error", error: err.message });

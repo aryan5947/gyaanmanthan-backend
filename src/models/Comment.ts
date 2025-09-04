@@ -6,6 +6,7 @@ export interface IReply {
   authorAvatar?: string; // ✅ DP support for replies
   text: string;
   likes: number;
+  likedBy: Types.ObjectId[]; // ✅ track who liked the reply
   createdAt: Date;
 }
 
@@ -16,6 +17,7 @@ export interface IComment extends Document {
   authorAvatar?: string; // ✅ DP support for main comment
   text: string;
   likes: number;
+  likedBy: Types.ObjectId[]; // ✅ track who liked the comment
   replies: IReply[];
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +30,7 @@ const replySchema = new Schema<IReply>(
     authorAvatar: { type: String }, // ✅ schema field for reply DP
     text: { type: String, required: true },
     likes: { type: Number, default: 0 },
+    likedBy: [{ type: Schema.Types.ObjectId, ref: "User" }], // ✅ new
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
@@ -40,6 +43,7 @@ const commentSchema = new Schema<IComment>(
     authorAvatar: { type: String }, // ✅ schema field for comment DP
     text: { type: String, required: true },
     likes: { type: Number, default: 0 },
+    likedBy: [{ type: Schema.Types.ObjectId, ref: "User" }], // ✅ new
     replies: [replySchema],
   },
   { timestamps: true }

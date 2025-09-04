@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Comment } from "../models/Comment";
+import { Types } from "mongoose";
 
 // ---------------- ADD COMMENT ----------------
 export const addComment = async (req: Request, res: Response) => {
@@ -15,14 +16,15 @@ export const addComment = async (req: Request, res: Response) => {
       postId,
       authorId: req.user._id,
       authorName: req.user.name,
-      authorAvatar: req.user.avatarUrl || null, // ✅ DP add
+      authorAvatar: req.user.avatarUrl || null,
       text,
       likes: 0,
+      likedBy: [],
       replies: [],
-      createdAt: new Date()
+      createdAt: new Date(),
     });
 
-    return res.status(201).json(comment); // ✅ direct object
+    return res.status(201).json(comment);
   } catch (err: any) {
     console.error("Error adding comment:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -45,9 +47,10 @@ export const addReply = async (req: Request, res: Response) => {
     comment.replies.push({
       authorId: req.user._id,
       authorName: req.user.name,
-      authorAvatar: req.user.avatarUrl, // ✅ clean and safe
+      authorAvatar: req.user.avatarUrl,
       text,
       likes: 0,
+      likedBy: [],
       createdAt: new Date(),
     });
 
@@ -59,19 +62,46 @@ export const addReply = async (req: Request, res: Response) => {
   }
 };
 
-// ---------------- LIKE COMMENT ----------------
-export const likeComment = async (req: Request, res: Response) => {
+// ---------------- TOGGLE LIKE COMMENT ----------------
+export const toggleLikeComment = async (req: Request, res: Response) => {
   try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
     const { commentId } = req.params;
+    const userId = req.user._id as Types.ObjectId;
+
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    comment.likes = (comment.likes || 0) + 1;
+    if (!Array.isArray(comment.likedBy)) {
+      comment.likedBy = [];
+    }
+
+    const hasLiked = comment.likedBy.some(
+      (id) => id.toString() === userId.toString()
+    );
+
+    if (hasLiked) {
+      // Unlike
+      comment.likedBy = comment.likedBy.filter(
+        (id) => id.toString() !== userId.toString()
+      );
+      comment.likes = Math.max(0, comment.likes - 1);
+    } else {
+      // Like
+      comment.likedBy.push(userId);
+      comment.likes += 1;
+    }
+
     await comment.save();
 
-    return res.json({ message: "Comment liked", likes: comment.likes });
+    return res.json({
+      _id: comment._id,
+      likes: comment.likes,
+      likedBy: comment.likedBy,
+    });
   } catch (err: any) {
-    console.error("Error liking comment:", err);
+    console.error("Error toggling like:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
@@ -128,7 +158,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     const { postId } = req.params;
     const comments = await Comment.find({ postId }).sort({ createdAt: -1 });
 
-    return res.json(comments); // ✅ direct array
+    return res.json(comments);
   } catch (err: any) {
     console.error("Error fetching comments:", err);
     return res.status(500).json({ message: "Server error", error: err.message });

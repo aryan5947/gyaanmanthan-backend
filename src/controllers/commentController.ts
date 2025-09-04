@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { Comment } from "../models/Comment";
-import { Types } from "mongoose";
 
 // ---------------- ADD COMMENT ----------------
 export const addComment = async (req: Request, res: Response) => {
@@ -19,7 +18,7 @@ export const addComment = async (req: Request, res: Response) => {
       authorAvatar: req.user.avatarUrl || null,
       text,
       likes: 0,
-      likedBy: [],
+      likedBy: [], // ✅ empty array
       replies: [],
       createdAt: new Date(),
     });
@@ -68,7 +67,7 @@ export const toggleLikeComment = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId } = req.params;
-    const userId = req.user._id as Types.ObjectId;
+    const userId = req.user._id.toString(); // ✅ convert to string
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
@@ -77,15 +76,11 @@ export const toggleLikeComment = async (req: Request, res: Response) => {
       comment.likedBy = [];
     }
 
-    const hasLiked = comment.likedBy.some(
-      (id) => id.toString() === userId.toString()
-    );
+    const hasLiked = comment.likedBy.includes(userId);
 
     if (hasLiked) {
       // Unlike
-      comment.likedBy = comment.likedBy.filter(
-        (id) => id.toString() !== userId.toString()
-      );
+      comment.likedBy = comment.likedBy.filter((id) => id !== userId);
       comment.likes = Math.max(0, comment.likes - 1);
     } else {
       // Like

@@ -2,9 +2,12 @@ import { Router } from "express";
 import {
   addComment,
   addReply,
-  toggleLikeComment, // ✅ rename match with controller
+  toggleLikeComment,   // ✅ toggle like for comment
+  toggleLikeReply,     // ✅ toggle like for reply
   editComment,
   deleteComment,
+  editReply,           // ✅ new
+  deleteReply,         // ✅ new
   getCommentsByPost,
 } from "../controllers/commentController";
 import { auth } from "../middleware/auth";
@@ -20,5 +23,8 @@ router.post("/:commentId/like", auth, toggleLikeComment); // ✅ toggle like
 
 // ---------------- REPLIES ----------------
 router.post("/:commentId/reply", auth, addReply);
+router.put("/:commentId/reply/:replyId", auth, editReply); // ✅ edit reply
+router.delete("/:commentId/reply/:replyId", auth, deleteReply); // ✅ delete reply
+router.post("/:commentId/reply/:replyId/like", auth, toggleLikeReply); // ✅ toggle like reply
 
 export default router;

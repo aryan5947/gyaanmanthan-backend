@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { connectDB } from "../config/db";
 import { Post } from "../models/Post";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
 import { getSponsoredForFeed } from "./adController";
@@ -13,6 +14,8 @@ type FeedItem =
 // ---------------- CREATE POST ----------------
 export const createPost = async (req: Request, res: Response) => {
   try {
+    await connectDB();
+
     const { title, description, content, category, tags } = req.body;
 
     if (!title || !description || !content) {
@@ -38,7 +41,7 @@ export const createPost = async (req: Request, res: Response) => {
     // ✅ user info (from auth middleware)
     const userId = req.user?.id;
     const userName = req.user?.name || "Anonymous";
-    const userAvatar = req.user?.avatarUrl || ""; // ✅ avatar le liya
+    const userAvatar = req.user?.avatarUrl || "";
 
     const post = await Post.create({
       title,
@@ -53,7 +56,7 @@ export const createPost = async (req: Request, res: Response) => {
       images,
       authorId: userId,
       authorName: userName,
-      authorAvatar: userAvatar, // ✅ yaha save ho jayega
+      authorAvatar: userAvatar,
     });
 
     return res.status(201).json({ post });
@@ -65,27 +68,30 @@ export const createPost = async (req: Request, res: Response) => {
   }
 };
 
-// ---------------- FEED ----------------
+// ---------------- FEED (Infinite Scroll) ----------------
 export const getFeed = async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 20 } = req.query as any;
-    const skip = (Number(page) - 1) * Number(limit);
+    await connectDB();
 
-    const posts = await Post.find({})
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit));
+    const { lastId, limit = 10 } = req.query as any;
+    const query: any = {};
 
-    // Map posts to feed items
+    if (lastId) {
+      query._id = { $lt: lastId }; // fetch older posts
+    }
+
+    const posts = await Post.find(query)
+      .sort({ _id: -1 })
+      .limit(Number(limit))
+      .lean();
+
     const feed: FeedItem[] = posts.map((p) => ({
       type: "post",
       data: p as unknown as IPost,
     }));
 
-    // Get sponsored ad
+    // Sponsored ad injection
     const sponsored = await getSponsoredForFeed(req);
-
-    // Inject sponsored ad after 4th post
     if (sponsored) {
       feed.splice(Math.min(4, feed.length), 0, {
         type: "sponsored",
@@ -93,7 +99,10 @@ export const getFeed = async (req: Request, res: Response) => {
       });
     }
 
-    return res.json({ feed, page: Number(page), count: feed.length });
+    return res.json({
+      feed,
+      nextCursor: posts.length > 0 ? posts[posts.length - 1]._id : null,
+    });
   } catch (err: any) {
     console.error("Error fetching feed:", err);
     return res
@@ -105,10 +114,24 @@ export const getFeed = async (req: Request, res: Response) => {
 // ---------------- USER POSTS ----------------
 export const getUserPosts = async (req: Request, res: Response) => {
   try {
-    const posts = await Post.find({ authorId: req.params.id }).sort({
-      createdAt: -1,
+    await connectDB();
+
+    const { lastId, limit = 10 } = req.query as any;
+    const query: any = { authorId: req.params.id };
+
+    if (lastId) {
+      query._id = { $lt: lastId };
+    }
+
+    const posts = await Post.find(query)
+      .sort({ _id: -1 })
+      .limit(Number(limit))
+      .lean();
+
+    return res.json({
+      posts,
+      nextCursor: posts.length > 0 ? posts[posts.length - 1]._id : null,
     });
-    return res.json({ posts });
   } catch (err: any) {
     console.error("Error fetching user posts:", err);
     return res

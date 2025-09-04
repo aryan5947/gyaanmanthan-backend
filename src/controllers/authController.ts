@@ -5,6 +5,7 @@ import { User } from '../models/User';
 import { env } from '../config/env';
 import { uploadBufferToCloudinary } from '../utils/cloudinary';
 
+// --- SIGNUP ---
 export const signup = async (req: Request, res: Response) => {
   const { name, username, email, password, bio } = req.body;
 
@@ -35,10 +36,12 @@ export const signup = async (req: Request, res: Response) => {
   });
 
   const token = jwt.sign({ id: user._id }, env.jwtSecret, { expiresIn: '7d' });
+  // ** UPDATE: Return userId as "user._id" (not just "id") **
   return res.status(201).json({
     token,
     user: {
       id: user._id,
+      _id: user._id, // <-- For frontend localStorage userId!
       name: user.name,
       username: user.username,
       email: user.email,
@@ -50,6 +53,7 @@ export const signup = async (req: Request, res: Response) => {
   });
 };
 
+// --- LOGIN ---
 export const login = async (req: Request, res: Response) => {
   const { emailOrUsername, password } = req.body;
   if (!emailOrUsername || !password) {
@@ -65,10 +69,12 @@ export const login = async (req: Request, res: Response) => {
   if (!ok) return res.status(401).json({ message: 'Invalid credentials' });
 
   const token = jwt.sign({ id: user._id }, env.jwtSecret, { expiresIn: '7d' });
+  // ** UPDATE: Return userId as "user._id" (not just "id") **
   return res.json({
     token,
     user: {
       id: user._id,
+      _id: user._id, // <-- For frontend localStorage userId!
       name: user.name,
       username: user.username,
       email: user.email,

@@ -1,6 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-// ---------------- INTERFACES ----------------
 export interface IReply {
   authorId: Types.ObjectId;
   authorName: string;
@@ -24,42 +23,30 @@ export interface IComment extends Document {
   updatedAt: Date;
 }
 
-// ---------------- REPLY SCHEMA ----------------
 const replySchema = new Schema<IReply>(
   {
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     authorName: { type: String, required: true },
-    authorAvatar: { type: String },
+    authorAvatar: { type: String }, // ✅ schema field for reply DP
     text: { type: String, required: true },
     likes: { type: Number, default: 0 },
-    likedBy: [
-      { type: Schema.Types.ObjectId, ref: "User", default: [] },
-    ], // ✅ default empty array
+    likedBy: [{ type: Schema.Types.ObjectId, ref: "User" }], // ✅ new
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
-// ---------------- COMMENT SCHEMA ----------------
 const commentSchema = new Schema<IComment>(
   {
-    postId: {
-      type: Schema.Types.ObjectId,
-      ref: "Post",
-      required: true,
-      index: true, // ✅ faster queries for comments by post
-    },
+    postId: { type: Schema.Types.ObjectId, ref: "Post", required: true, index: true },
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     authorName: { type: String, required: true },
-    authorAvatar: { type: String },
+    authorAvatar: { type: String }, // ✅ schema field for comment DP
     text: { type: String, required: true },
     likes: { type: Number, default: 0 },
-    likedBy: [
-      { type: Schema.Types.ObjectId, ref: "User", default: [] },
-    ], // ✅ default empty array
+    likedBy: [{ type: Schema.Types.ObjectId, ref: "User" }], // ✅ new
     replies: [replySchema],
   },
   { timestamps: true }
 );
 
-// ---------------- MODEL EXPORT ----------------
 export const Comment = model<IComment>("Comment", commentSchema);

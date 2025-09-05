@@ -6,13 +6,10 @@ export interface IPost extends Document {
   content: string;
   category: string;
   tags: string[];
-  media: {
-    url: string;
-    type: "image" | "video";
-  }[];
+  images: string[];
   authorId: Types.ObjectId;
   authorName: string;
-  authorAvatar?: string; // ✅ Profile Picture
+  authorAvatar?: string; // ✅ DP bhi store karenge
   stats: {
     views: number;
     likes: number;
@@ -23,32 +20,17 @@ export interface IPost extends Document {
 
 const postSchema = new Schema<IPost>(
   {
-    // ✅ Basic Info
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
-    content: { type: String, required: true }, // JSON string ya plain text
-
-    // ✅ Categorization
+    content: { type: String, required: true }, // can be JSON string or plain text
     category: { type: String, default: "General", index: true },
     tags: [{ type: String, index: true }],
-
-    // ✅ Media (Image / Video)
-    media: [
-      {
-        url: { type: String, required: true },
-        type: { type: String, enum: ["image", "video"], required: true },
-      },
-    ],
+    images: [{ type: String }],
 
     // ✅ Author Info
-    authorId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    authorName: { type: String, required: true },
-    authorAvatar: { type: String },
+    authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    authorName: { type: String, required: true }, // store name for quick access
+    authorAvatar: { type: String }, // ✅ DP bhi save hoga
 
     // ✅ Stats
     stats: {

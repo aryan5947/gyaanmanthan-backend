@@ -12,7 +12,7 @@ export interface IPost extends Document {
   }[];
   authorId: Types.ObjectId;
   authorName: string;
-  authorAvatar?: string; // ✅ DP bhi store karenge
+  authorAvatar?: string; // ✅ Profile Picture
   stats: {
     views: number;
     likes: number;
@@ -23,13 +23,16 @@ export interface IPost extends Document {
 
 const postSchema = new Schema<IPost>(
   {
+    // ✅ Basic Info
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
-    content: { type: String, required: true }, // can be JSON string or plain text
+    content: { type: String, required: true }, // JSON string ya plain text
+
+    // ✅ Categorization
     category: { type: String, default: "General", index: true },
     tags: [{ type: String, index: true }],
 
-    // ✅ Media (image or video)
+    // ✅ Media (Image / Video)
     media: [
       {
         url: { type: String, required: true },
@@ -38,9 +41,14 @@ const postSchema = new Schema<IPost>(
     ],
 
     // ✅ Author Info
-    authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    authorName: { type: String, required: true }, // store name for quick access
-    authorAvatar: { type: String }, // ✅ DP bhi save hoga
+    authorId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    authorName: { type: String, required: true },
+    authorAvatar: { type: String },
 
     // ✅ Stats
     stats: {

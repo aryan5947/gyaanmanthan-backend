@@ -12,34 +12,45 @@ type FeedItem =
 
 // ---------------- CREATE POST ----------------
 export const createPost = async (req: Request, res: Response) => {
-  // 1. Route se aa rahe validation errors ko check karein
+  // Validation errors check
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const { content, category, tags } = req.body;
-    const images: string[] = [];
+    const { title, description, content, category, tags } = req.body;
+
+    if (!title || !description || !content) {
+      return res.status(400).json({
+        message: "Title, description, and content are required",
+      });
+    }
+
+    const media: { url: string; type: "image" | "video" }[] = [];
     const files = (req as any).files as Express.Multer.File[] | undefined;
 
     if (files?.length) {
       for (const f of files) {
-        const up = await uploadBufferToCloudinary(
-          f.buffer,
-          f.mimetype,
-          "posts"
-        );
-        images.push(up.url);
+        const up = await uploadBufferToCloudinary(f.buffer, f.mimetype, "posts");
+
+        // ✅ check file type using mimetype
+        const fileType = f.mimetype.startsWith("video")
+          ? "video"
+          : "image";
+
+        media.push({ url: up.url, type: fileType });
       }
     }
 
-    // auth middleware se user ki jaankari lein
+    // auth middleware se user
     const userId = req.user?.id;
     const userName = req.user?.name || "Anonymous";
     const userAvatar = req.user?.avatarUrl || "";
 
     const post = await Post.create({
+      title,
+      description,
       content,
       category: category || "General",
       tags: Array.isArray(tags)
@@ -47,7 +58,7 @@ export const createPost = async (req: Request, res: Response) => {
         : typeof tags === "string"
         ? tags.split(",").map((t: string) => t.trim())
         : [],
-      images,
+      media,
       authorId: userId,
       authorName: userName,
       authorAvatar: userAvatar,
@@ -105,7 +116,7 @@ export const getFeed = async (req: Request, res: Response) => {
 
 // ---------------- USER POSTS ----------------
 export const getUserPosts = async (req: Request, res: Response) => {
-  // 1. Route se aa rahe validation errors ko check karein (isMongoId)
+  // Validation errors check (isMongoId)
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });

@@ -6,7 +6,10 @@ export interface IPost extends Document {
   content: string;
   category: string;
   tags: string[];
-  images: string[];
+  media: {
+    url: string;
+    type: "image" | "video";
+  }[];
   authorId: Types.ObjectId;
   authorName: string;
   authorAvatar?: string; // ✅ DP bhi store karenge
@@ -25,7 +28,14 @@ const postSchema = new Schema<IPost>(
     content: { type: String, required: true }, // can be JSON string or plain text
     category: { type: String, default: "General", index: true },
     tags: [{ type: String, index: true }],
-    images: [{ type: String }],
+
+    // ✅ Media (image or video)
+    media: [
+      {
+        url: { type: String, required: true },
+        type: { type: String, enum: ["image", "video"], required: true },
+      },
+    ],
 
     // ✅ Author Info
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },

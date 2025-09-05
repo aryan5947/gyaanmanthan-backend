@@ -9,7 +9,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import { connectDB } from './config/db';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
-import { auth } from './middleware/auth'; // Auth middleware ko import karein
+import { auth } from './middleware/auth'; // Auth middleware import
 
 // Routes
 import authRoutes from './routes/authRoutes';
@@ -28,47 +28,43 @@ const app = express();
 // 1. Set security-related HTTP response headers
 app.use(helmet());
 
-// 2. Configure CORS (Cross-Origin Resource Sharing)
-// Production ke liye '*' use karna aacha nahi hai. Sirf apne trusted domains ko allow karein.
+// 2. Configure CORS
 const allowedOrigins = [
-  'http://localhost:3000', // Aapka local frontend (React)
-  'http://localhost:5173', // Aapka local frontend (Vite)
-  'https://your-frontend-domain.com' // Aapka production frontend domain yahan daalein
+  'http://localhost:3000', // React
+  'http://localhost:5173', // Vite
+  'https://your-frontend-domain.com' // Production domain
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Agar request ka origin allowed list mein hai, to use allow karein
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true, // Cookies ya authorization headers ke liye
+  credentials: true,
 }));
 
 
-// 3. Rate Limiting to prevent brute-force attacks
+// 3. Rate Limiting
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minute
-  max: 100, // Har IP se 15 min mein 100 requests allow karein
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many requests from this IP, please try again after 15 minutes',
 });
 
-// Saare API routes par rate limiter lagayein
 app.use('/api', apiLimiter);
 
 
 // --- CORE MIDDLEWARES ---
 
-// 4. Body parser with a size limit
+// 4. Body parser
 app.use(express.json({ limit: '2mb' }));
 
-// 5. Sanitize user-supplied data to prevent NoSQL injection attacks
-// Ise hamesha json() or urlencoded() ke baad use karein.
+// 5. Sanitize data
 app.use(mongoSanitize());
 
 // 6. HTTP request logger
@@ -83,22 +79,24 @@ app.use('/favicon.ico', express.static(path.join(__dirname, 'public', 'favicon.i
 // Health check endpoint
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// Public routes (inhe access karne ke liye login zaroori nahi hai)
+// Public routes (login/register)
 app.use('/api/auth', authRoutes);
 
-// Protected routes (inhe access karne ke liye authentication zaroori hai)
-// Humne 'auth' middleware ko in sabhi routes se pehle laga diya hai.
+// Routes with mixed (public/private) endpoints. 
+// Authentication is handled inside their respective route files.
+app.use('/api/posts', postRoutes);
+app.use("/api/comments", commentRoutes);
+
+// Fully protected routes (all endpoints require authentication)
 app.use('/api/user', auth, userRoutes);
-app.use('/api/posts', auth, postRoutes);
 app.use('/api/ads', auth, adRoutes);
-app.use("/api/comments", auth, commentRoutes);
 app.use('/api/affiliate', auth, affiliateRoutes);
 app.use('/api/wallet', auth, walletRoutes);
 
 
 // --- ERROR HANDLING ---
 
-// Error handler middleware (hamesha sabse aakhir mein hona chahiye)
+// Error handler (must be last)
 app.use(errorHandler);
 
 
@@ -106,9 +104,7 @@ app.use(errorHandler);
 
 async function start() {
   await connectDB();
-
-  const PORT = env.port; // env.ts se (process.env.PORT || 8080)
-
+  const PORT = env.port;
   app.listen(PORT, () => {
     console.log(`🚀 Server running on :${PORT} [${env.nodeEnv}]`);
   });
@@ -118,4 +114,3 @@ start().catch((e) => {
   console.error('Failed to start server', e);
   process.exit(1);
 });
-

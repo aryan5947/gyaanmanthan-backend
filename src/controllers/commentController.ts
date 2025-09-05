@@ -1,23 +1,27 @@
 import { Request, Response } from "express";
+import { validationResult } from "express-validator";
 import { Comment } from "../models/Comment";
 import { Types } from "mongoose";
 
 // ---------------- ADD COMMENT ----------------
 export const addComment = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    const { text } = req.body;
+    const { content } = req.body; // 'text' ko 'content' se badla gaya hai, route se match karne ke liye
     const { postId } = req.params;
-
-    if (!text) return res.status(400).json({ message: "Text is required" });
 
     const comment = await Comment.create({
       postId,
       authorId: req.user._id,
       authorName: req.user.name,
-      authorAvatar: req.user.avatarUrl ?? undefined, // ✅ null → undefined
-      text,
+      authorAvatar: req.user.avatarUrl ?? undefined,
+      text: content, // Database model mein 'text' hai
       likes: 0,
       likedBy: [],
       replies: [],
@@ -33,13 +37,16 @@ export const addComment = async (req: Request, res: Response) => {
 
 // ---------------- ADD REPLY ----------------
 export const addReply = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    const { text } = req.body;
+    const { content } = req.body; // 'text' ko 'content' se badla gaya hai
     const { commentId } = req.params;
-
-    if (!text) return res.status(400).json({ message: "Text is required" });
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
@@ -47,8 +54,8 @@ export const addReply = async (req: Request, res: Response) => {
     comment.replies.push({
       authorId: req.user._id,
       authorName: req.user.name,
-      authorAvatar: req.user.avatarUrl ?? undefined, // ✅ null → undefined
-      text,
+      authorAvatar: req.user.avatarUrl ?? undefined,
+      text: content, // Database model mein 'text' hai
       likes: 0,
       likedBy: [],
       createdAt: new Date(),
@@ -64,6 +71,11 @@ export const addReply = async (req: Request, res: Response) => {
 
 // ---------------- TOGGLE LIKE COMMENT ----------------
 export const toggleLikeComment = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -106,6 +118,11 @@ export const toggleLikeComment = async (req: Request, res: Response) => {
 
 // ---------------- TOGGLE LIKE REPLY ----------------
 export const toggleLikeReply = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -115,7 +132,7 @@ export const toggleLikeReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (!Array.isArray(reply.likedBy)) {
@@ -146,11 +163,16 @@ export const toggleLikeReply = async (req: Request, res: Response) => {
 
 // ---------------- EDIT COMMENT ----------------
 export const editComment = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId } = req.params;
-    const { text } = req.body;
+    const { content } = req.body; // 'text' ko 'content' se badla gaya hai
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
@@ -159,7 +181,7 @@ export const editComment = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    comment.text = text;
+    comment.text = content; // Database model mein 'text' hai
     await comment.save();
 
     return res.json(comment);
@@ -171,23 +193,28 @@ export const editComment = async (req: Request, res: Response) => {
 
 // ---------------- EDIT REPLY ----------------
 export const editReply = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId, replyId } = req.params;
-    const { text } = req.body;
+    const { content } = req.body; // 'text' ko 'content' se badla gaya hai
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (reply.authorId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    reply.text = text;
+    reply.text = content; // Database model mein 'text' hai
     await comment.save();
 
     return res.json(reply);
@@ -199,6 +226,11 @@ export const editReply = async (req: Request, res: Response) => {
 
 // ---------------- DELETE COMMENT ----------------
 export const deleteComment = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -220,6 +252,11 @@ export const deleteComment = async (req: Request, res: Response) => {
 
 // ---------------- DELETE REPLY ----------------
 export const deleteReply = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -228,14 +265,14 @@ export const deleteReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId); // ✅ cast
+    const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (reply.authorId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    reply.deleteOne();
+    reply.deleteOne(); // Mongoose v6+ mein remove() ki jagah deleteOne()
     await comment.save();
 
     return res.json({ message: "Reply deleted" });
@@ -247,6 +284,11 @@ export const deleteReply = async (req: Request, res: Response) => {
 
 // ---------------- GET COMMENTS FOR POST ----------------
 export const getCommentsByPost = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     const { postId } = req.params;
     const comments = await Comment.find({ postId }).sort({ createdAt: -1 });
@@ -257,3 +299,4 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+

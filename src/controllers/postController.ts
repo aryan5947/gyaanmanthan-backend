@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
-import { connectDB } from "../config/db";
-import { Post } from "../models/Post";
+import { validationResult } from "express-validator";
+import { Post, IPost } from "../models/Post";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
 import { getSponsoredForFeed } from "./adController";
-import { IPost } from "../models/Post";
 import { IAd } from "../models/Ad";
 
 // Union type for feed items
@@ -13,17 +12,14 @@ type FeedItem =
 
 // ---------------- CREATE POST ----------------
 export const createPost = async (req: Request, res: Response) => {
+  // 1. Route se aa rahe validation errors ko check karein
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
-    await connectDB();
-
-    const { title, description, content, category, tags } = req.body;
-
-    if (!title || !description || !content) {
-      return res
-        .status(400)
-        .json({ message: "Title, description, and content are required" });
-    }
-
+    const { content, category, tags } = req.body;
     const images: string[] = [];
     const files = (req as any).files as Express.Multer.File[] | undefined;
 
@@ -38,14 +34,12 @@ export const createPost = async (req: Request, res: Response) => {
       }
     }
 
-    // ✅ user info (from auth middleware)
+    // auth middleware se user ki jaankari lein
     const userId = req.user?.id;
     const userName = req.user?.name || "Anonymous";
     const userAvatar = req.user?.avatarUrl || "";
 
     const post = await Post.create({
-      title,
-      description,
       content,
       category: category || "General",
       tags: Array.isArray(tags)
@@ -71,8 +65,6 @@ export const createPost = async (req: Request, res: Response) => {
 // ---------------- FEED (Infinite Scroll) ----------------
 export const getFeed = async (req: Request, res: Response) => {
   try {
-    await connectDB();
-
     const { lastId, limit = 10 } = req.query as any;
     const query: any = {};
 
@@ -113,9 +105,13 @@ export const getFeed = async (req: Request, res: Response) => {
 
 // ---------------- USER POSTS ----------------
 export const getUserPosts = async (req: Request, res: Response) => {
-  try {
-    await connectDB();
+  // 1. Route se aa rahe validation errors ko check karein (isMongoId)
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
+  try {
     const { lastId, limit = 10 } = req.query as any;
     const query: any = { authorId: req.params.id };
 

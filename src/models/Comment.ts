@@ -27,10 +27,10 @@ const replySchema = new Schema<IReply>(
   {
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     authorName: { type: String, required: true },
-    authorAvatar: { type: String },
+    authorAvatar: { type: String }, // ✅ schema field for reply DP
     text: { type: String, required: true },
     likes: { type: Number, default: 0 },
-    likedBy: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }], // ✅ default empty array
+    likedBy: [{ type: Schema.Types.ObjectId, ref: "User" }], // ✅ new
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
@@ -40,10 +40,10 @@ const commentSchema = new Schema<IComment>(
     postId: { type: Schema.Types.ObjectId, ref: "Post", required: true, index: true },
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     authorName: { type: String, required: true },
-    authorAvatar: { type: String },
+    authorAvatar: { type: String }, // ✅ schema field for comment DP
     text: { type: String, required: true },
     likes: { type: Number, default: 0 },
-    likedBy: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }], // ✅ default empty array
+    likedBy: [{ type: Schema.Types.ObjectId, ref: "User" }], // ✅ new
     replies: [replySchema],
   },
   { timestamps: true }

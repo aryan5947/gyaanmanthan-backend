@@ -13,8 +13,10 @@ import { auth } from './middleware/auth'; // Auth middleware import
 
 // Routes
 import authRoutes from './routes/authRoutes';
+import adminRoutes from './routes/admin.routes';
 import userRoutes from './routes/userRoutes';
 import postRoutes from './routes/postRoutes';
+import postMetaRoutes from "./routes/postMeta.routes"
 import adRoutes from './routes/adRoutes';
 import commentRoutes from "./routes/commentRoutes";
 import affiliateRoutes from './routes/affiliateRoutes';
@@ -32,7 +34,7 @@ app.use(helmet());
 const allowedOrigins = [
   'http://localhost:3000', // React
   'http://localhost:5173', // Vite
-  'https://your-frontend-domain.com' // Production domain
+  'https://gyaanmanthan.in' // Production domain
 ];
 
 app.use(cors({
@@ -85,10 +87,12 @@ app.use('/api/auth', authRoutes);
 // Routes with mixed (public/private) endpoints. 
 // Authentication is handled inside their respective route files.
 app.use('/api/posts', postRoutes);
+app.use("/api/post-meta", postMetaRoutes);
 app.use("/api/comments", commentRoutes);
 
 // Fully protected routes (all endpoints require authentication)
 app.use('/api/user', auth, userRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/ads', auth, adRoutes);
 app.use('/api/affiliate', auth, affiliateRoutes);
 app.use('/api/wallet', auth, walletRoutes);

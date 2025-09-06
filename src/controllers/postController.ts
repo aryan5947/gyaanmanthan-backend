@@ -16,6 +16,11 @@ export const createPost = async (req: Request, res: Response) => {
   try {
     await connectDB();
 
+    // ✅ Role check — only admin & moderator can create posts
+    if (!req.user || !["admin", "moderator"].includes(req.user.role || "")) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const { title, description, content, category, tags } = req.body;
 
     if (!title || !description || !content) {
@@ -38,7 +43,6 @@ export const createPost = async (req: Request, res: Response) => {
       }
     }
 
-    // ✅ user info (from auth middleware)
     const userId = req.user?.id;
     const userName = req.user?.name || "Anonymous";
     const userAvatar = req.user?.avatarUrl || "";
@@ -77,7 +81,7 @@ export const getFeed = async (req: Request, res: Response) => {
     const query: any = {};
 
     if (lastId) {
-      query._id = { $lt: lastId }; // fetch older posts
+      query._id = { $lt: lastId };
     }
 
     const posts = await Post.find(query)
@@ -90,7 +94,6 @@ export const getFeed = async (req: Request, res: Response) => {
       data: p as unknown as IPost,
     }));
 
-    // Sponsored ad injection
     const sponsored = await getSponsoredForFeed(req);
     if (sponsored) {
       feed.splice(Math.min(4, feed.length), 0, {

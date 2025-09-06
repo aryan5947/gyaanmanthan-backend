@@ -6,7 +6,7 @@ import {
   deletePostMeta,
   getPostMetaFeed,
   getUserPostMetas,
-} from "../controllers/PostMetaController"; // ✅ Case match for Linux servers
+} from "../controllers/postMetaController"; // ✅ Case match for Linux servers
 import { auth } from "../middleware/auth";
 import { authorize } from "../middleware/authorize"; // ✅ Role-based middleware
 

@@ -5,7 +5,7 @@ import { authorize } from '../middleware/authorize';
 const router = express.Router();
 
 // Example: Admin-only route
-router.get('/dashboard', auth, authorize('admin'), (req, res) => {
+router.get('/dashboard', auth, authorize(['admin']), (req, res) => {
   res.json({
     message: `Welcome ${req.user?.name}, you have admin access.`,
     role: req.user?.role
@@ -13,7 +13,7 @@ router.get('/dashboard', auth, authorize('admin'), (req, res) => {
 });
 
 // Example: Admin + Moderator route
-router.post('/create-post', auth, authorize('admin', 'moderator'), (req, res) => {
+router.post('/create-post', auth, authorize(['admin', 'moderator']), (req, res) => {
   // Your post creation logic here
   res.json({ message: 'Post created successfully' });
 });

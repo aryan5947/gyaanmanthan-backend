@@ -15,9 +15,22 @@ export const createPostMeta = async (req: Request, res: Response) => {
   try {
     await connectDB();
 
+    // 🔐 Auth check with debug
+    if (!req.user || !req.user.id || !req.user.role) {
+      console.warn("Unauthorized access attempt:", {
+        headers: req.headers,
+        user: req.user,
+      });
+      return res
+        .status(403)
+        .json({ message: "Access denied: user not authenticated" });
+    }
+
     const { title, description, category, tags } = req.body;
     if (!title || !description) {
-      return res.status(400).json({ message: "Title and description are required" });
+      return res
+        .status(400)
+        .json({ message: "Title and description are required" });
     }
 
     const filesArr: { url: string; type: string; name?: string; size?: number }[] = [];
@@ -39,9 +52,9 @@ export const createPostMeta = async (req: Request, res: Response) => {
       }
     }
 
-    const userId = req.user?.id;
-    const userName = req.user?.name || "Anonymous";
-    const userAvatar = req.user?.avatarUrl || "";
+    const userId = req.user.id;
+    const userName = req.user.name || "Anonymous";
+    const userAvatar = req.user.avatarUrl || "";
 
     const postMeta = await PostMeta.create({
       title,
@@ -61,7 +74,9 @@ export const createPostMeta = async (req: Request, res: Response) => {
     return res.status(201).json({ postMeta });
   } catch (err: any) {
     console.error("Error creating post meta:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };
 
@@ -81,7 +96,9 @@ export const updatePostMeta = async (req: Request, res: Response) => {
     const userId = req.user?.id;
     const isAdmin = req.user?.role === "admin";
     if (postMeta.authorId.toString() !== userId && !isAdmin) {
-      return res.status(403).json({ message: "Not authorized to edit this post" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to edit this post" });
     }
 
     if (title) postMeta.title = title;
@@ -122,7 +139,9 @@ export const updatePostMeta = async (req: Request, res: Response) => {
     return res.json({ message: "PostMeta updated successfully", postMeta });
   } catch (err: any) {
     console.error("Error updating post meta:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };
 
@@ -140,14 +159,18 @@ export const deletePostMeta = async (req: Request, res: Response) => {
     const userId = req.user?.id;
     const isAdmin = req.user?.role === "admin";
     if (postMeta.authorId.toString() !== userId && !isAdmin) {
-      return res.status(403).json({ message: "Not authorized to delete this post" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this post" });
     }
 
     await postMeta.deleteOne();
     return res.json({ message: "PostMeta deleted successfully" });
   } catch (err: any) {
     console.error("Error deleting post meta:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };
 
@@ -184,7 +207,9 @@ export const getPostMetaFeed = async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error("Error fetching post meta feed:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };
 
@@ -208,6 +233,8 @@ export const getUserPostMetas = async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error("Error fetching user post metas:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };

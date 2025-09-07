@@ -9,6 +9,7 @@ export interface IUser extends Document {
   bio?: string;
   plan: 'free' | 'partner';
   walletBalance: number;
+  role: 'user' | 'admin' | 'moderator' | 'banned'; // ✅ RBAC ready
 
   followersCount: number;   // ✅ total followers
   followingCount: number;   // ✅ total following
@@ -29,7 +30,10 @@ const userSchema = new Schema<IUser>(
     plan: { type: String, enum: ['free', 'partner'], default: 'free' },
     walletBalance: { type: Number, default: 0 },
 
-    // 📊 New counters
+    // ✅ RBAC role
+    role: { type: String, enum: ['user', 'admin', 'moderator', 'banned'], default: 'user' },
+
+    // 📊 Social graph counters
     followersCount: { type: Number, default: 0 },
     followingCount: { type: Number, default: 0 },
     postsCount: { type: Number, default: 0 },

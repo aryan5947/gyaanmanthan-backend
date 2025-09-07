@@ -7,5 +7,7 @@ declare module 'express-serve-static-core' {
       IUser,
       'id' | 'name' | 'username' | 'email' | 'avatarUrl' | 'plan' | 'walletBalance'
     > & { _id?: any; role?: IUser['role'] };
+
+    file?: Express.Multer.File; // ✅ multer ke liye
   }
 }

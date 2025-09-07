@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
+import { User } from "./User"; // ✅ User model import for count updates
 
 export interface IPost extends Document {
   title: string;
@@ -9,7 +10,7 @@ export interface IPost extends Document {
   images: string[];
   authorId: Types.ObjectId;
   authorName: string;
-  authorAvatar?: string; // ✅ DP bhi store karenge
+  authorAvatar?: string;
   stats: {
     views: number;
     likes: number;
@@ -29,8 +30,8 @@ const postSchema = new Schema<IPost>(
 
     // ✅ Author Info
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    authorName: { type: String, required: true }, // store name for quick access
-    authorAvatar: { type: String }, // ✅ DP bhi save hoga
+    authorName: { type: String, required: true },
+    authorAvatar: { type: String },
 
     // ✅ Stats
     stats: {
@@ -40,5 +41,25 @@ const postSchema = new Schema<IPost>(
   },
   { timestamps: true }
 );
+
+//
+// 📊 Auto‑increment/decrement User.postsCount
+//
+postSchema.post("save", async function (doc) {
+  try {
+    await User.findByIdAndUpdate(doc.authorId, { $inc: { postsCount: 1 } });
+  } catch (err) {
+    console.error("Error incrementing postsCount:", err);
+  }
+});
+
+postSchema.post("findOneAndDelete", async function (doc: IPost | null) {
+  if (!doc) return;
+  try {
+    await User.findByIdAndUpdate(doc.authorId, { $inc: { postsCount: -1 } });
+  } catch (err) {
+    console.error("Error decrementing postsCount:", err);
+  }
+});
 
 export const Post = model<IPost>("Post", postSchema);

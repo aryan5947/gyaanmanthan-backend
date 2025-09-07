@@ -9,6 +9,11 @@ export interface IUser extends Document {
   bio?: string;
   plan: 'free' | 'partner';
   walletBalance: number;
+
+  followersCount: number;   // ✅ total followers
+  followingCount: number;   // ✅ total following
+  postsCount: number;       // ✅ total posts
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +28,11 @@ const userSchema = new Schema<IUser>(
     bio: String,
     plan: { type: String, enum: ['free', 'partner'], default: 'free' },
     walletBalance: { type: Number, default: 0 },
+
+    // 📊 New counters
+    followersCount: { type: Number, default: 0 },
+    followingCount: { type: Number, default: 0 },
+    postsCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

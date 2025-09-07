@@ -15,18 +15,15 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
 
     const decoded = jwt.verify(token, env.jwtSecret) as JwtPayload;
 
-    // ✅ role ko explicitly include kiya, passwordHash ko exclude kiya
-    const user = await User.findById(decoded.id)
-      .select('-passwordHash role')
-      .lean(); // plain object return karega, type match easy ho jayega
-
+    // ✅ role include, passwordHash exclude
+    const user = await User.findById(decoded.id).select('-passwordHash role');
     if (!user) {
       return res.status(401).json({ message: 'Invalid token' });
     }
 
-    req.user = user;
+    req.user = user; // Mongoose document assign
     next();
-  } catch (e) {
+  } catch {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 }

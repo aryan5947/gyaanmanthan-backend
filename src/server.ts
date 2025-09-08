@@ -19,6 +19,7 @@ import postRoutes from './routes/postRoutes';
 import postMetaRoutes from "./routes/postMeta.routes"
 import adRoutes from './routes/adRoutes';
 import commentRoutes from "./routes/commentRoutes";
+import postMetaCommentRoutes from "./routes/postMetaComment.routes";
 import affiliateRoutes from './routes/affiliateRoutes';
 import walletRoutes from './routes/walletRoutes';
 
@@ -89,6 +90,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use("/api/post-meta", postMetaRoutes);
 app.use("/api/comments", commentRoutes);
+app.use("/api/post-meta-comments", postMetaCommentRoutes);
 
 // Fully protected routes (all endpoints require authentication)
 app.use('/api/user', auth, userRoutes);

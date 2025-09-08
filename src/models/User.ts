@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document } from 'mongoose'; 
 
 export interface IUser extends Document {
   name: string;
@@ -13,7 +13,8 @@ export interface IUser extends Document {
 
   followersCount: number;   // ✅ total followers
   followingCount: number;   // ✅ total following
-  postsCount: number;       // ✅ total posts
+  postsCount: number;       // ✅ total normal posts
+  postMetaCount: number;    // ✅ total postMeta created
 
   createdAt: Date;
   updatedAt: Date;
@@ -37,6 +38,7 @@ const userSchema = new Schema<IUser>(
     followersCount: { type: Number, default: 0 },
     followingCount: { type: Number, default: 0 },
     postsCount: { type: Number, default: 0 },
+    postMetaCount: { type: Number, default: 0 }, // ✅ added
   },
   { timestamps: true }
 );

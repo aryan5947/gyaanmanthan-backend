@@ -90,7 +90,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use("/api/post-meta", postMetaRoutes);
 app.use("/api/comments", commentRoutes);
-app.use("/api/post-meta-comments", postMetaCommentRoutes);
+app.use("/api/postMeta-comments", postMetaCommentRoutes);
 
 // Fully protected routes (all endpoints require authentication)
 app.use('/api/user', auth, userRoutes);

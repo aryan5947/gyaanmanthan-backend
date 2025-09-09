@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Comment } from "../models/Comment";
+import { PostMetaComment } from "../models/postMetaComment";
 import { Types } from "mongoose";
 
 // ✅ PostMeta owner check
@@ -19,7 +19,7 @@ export const addMetaComment = async (req: Request, res: Response) => {
 
     if (!text) return res.status(400).json({ message: "Text is required" });
 
-    const comment = await Comment.create({
+    const comment = await PostMetaComment.create({
       postMetaId,
       postAuthorId: postMetaAuthorId,
       authorId: req.user._id,
@@ -29,7 +29,6 @@ export const addMetaComment = async (req: Request, res: Response) => {
       likes: 0,
       likedBy: [],
       replies: [],
-      createdAt: new Date(),
     });
 
     return res.status(201).json(comment);
@@ -52,7 +51,7 @@ export const addMetaReply = async (req: Request, res: Response) => {
 
     if (!text) return res.status(400).json({ message: "Text is required" });
 
-    const comment = await Comment.findById(commentId);
+    const comment = await PostMetaComment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     comment.replies.push({
@@ -81,7 +80,7 @@ export const toggleLikeMetaComment = async (req: Request, res: Response) => {
     const { commentId } = req.params;
     const userId = req.user._id.toString();
 
-    const comment = await Comment.findById(commentId);
+    const comment = await PostMetaComment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     if (!Array.isArray(comment.likedBy)) {
@@ -123,7 +122,7 @@ export const toggleLikeMetaReply = async (req: Request, res: Response) => {
     const { commentId, replyId } = req.params;
     const userId = req.user._id.toString();
 
-    const comment = await Comment.findById(commentId);
+    const comment = await PostMetaComment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
@@ -163,7 +162,7 @@ export const editMetaComment = async (req: Request, res: Response) => {
     const { commentId } = req.params;
     const { text } = req.body;
 
-    const comment = await Comment.findById(commentId);
+    const comment = await PostMetaComment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     // ✅ Only Comment Owner OR Admin can edit
@@ -190,7 +189,7 @@ export const deleteMetaComment = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { commentId } = req.params;
-    const comment = await Comment.findById(commentId);
+    const comment = await PostMetaComment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     // ✅ Owner OR Admin OR PostMeta Owner can delete
@@ -218,7 +217,7 @@ export const editMetaReply = async (req: Request, res: Response) => {
     const { commentId, replyId } = req.params;
     const { text } = req.body;
 
-    const comment = await Comment.findById(commentId);
+    const comment = await PostMetaComment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
@@ -249,7 +248,7 @@ export const deleteMetaReply = async (req: Request, res: Response) => {
 
     const { commentId, replyId } = req.params;
 
-    const comment = await Comment.findById(commentId);
+    const comment = await PostMetaComment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
@@ -278,7 +277,7 @@ export const deleteMetaReply = async (req: Request, res: Response) => {
 export const getCommentsByPostMeta = async (req: Request, res: Response) => {
   try {
     const { postMetaId } = req.params;
-    const comments = await Comment.find({ postMetaId }).sort({ createdAt: -1 });
+    const comments = await PostMetaComment.find({ postMetaId }).sort({ createdAt: -1 });
 
     return res.json(comments);
   } catch (err: any) {

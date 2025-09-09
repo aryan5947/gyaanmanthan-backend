@@ -2,13 +2,19 @@ import { Request, Response } from "express";
 import { Comment } from "../models/Comment";
 import { Types } from "mongoose";
 
-// ✅ Panel admin/moderator check
-const isPanelPrivileged = (role?: string) =>
-  ["admin", "moderator"].includes(role || "");
+// ✅ Admin check
+const isAdmin = (role?: string) => role === "admin";
+
+// ✅ Moderator check
+const isModerator = (role?: string) => role === "moderator";
 
 // ✅ Post owner check
 const isPostOwner = (reqUserId: any, postAuthorId: any) =>
   reqUserId?.toString() === postAuthorId?.toString();
+
+// ✅ Owner check
+const isOwner = (reqUserId: any, resourceAuthorId: any) =>
+  reqUserId?.toString() === resourceAuthorId?.toString();
 
 // ---------------- ADD COMMENT ----------------
 export const addComment = async (req: Request, res: Response) => {
@@ -170,11 +176,7 @@ export const editComment = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    if (
-      comment.authorId.toString() !== req.user._id.toString() &&
-      !isPanelPrivileged(req.user.role) &&
-      !isPostOwner(req.user._id, comment.postAuthorId)
-    ) {
+    if (!isOwner(req.user._id, comment.authorId) && !isAdmin(req.user.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -198,8 +200,8 @@ export const deleteComment = async (req: Request, res: Response) => {
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     if (
-      comment.authorId.toString() !== req.user._id.toString() &&
-      !isPanelPrivileged(req.user.role) &&
+      !isOwner(req.user._id, comment.authorId) &&
+      !isAdmin(req.user.role) &&
       !isPostOwner(req.user._id, comment.postAuthorId)
     ) {
       return res.status(403).json({ message: "Forbidden" });
@@ -233,10 +235,7 @@ export const editReply = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Reply not found" });
     }
 
-    if (
-      reply.authorId.toString() !== req.user._id.toString() &&
-      !isPanelPrivileged(req.user.role)
-    ) {
+    if (!isOwner(req.user._id, reply.authorId) && !isAdmin(req.user.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -264,8 +263,8 @@ export const deleteReply = async (req: Request, res: Response) => {
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
     if (
-      reply.authorId.toString() !== req.user._id.toString() &&
-      !isPanelPrivileged(req.user.role) &&
+      !isOwner(req.user._id, reply.authorId) &&
+      !isAdmin(req.user.role) &&
       !isPostOwner(req.user._id, comment.postAuthorId)
     ) {
       return res.status(403).json({ message: "Forbidden" });

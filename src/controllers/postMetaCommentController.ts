@@ -2,10 +2,6 @@ import { Request, Response } from "express";
 import { Comment } from "../models/Comment";
 import { Types } from "mongoose";
 
-// ✅ Panel admin/moderator check
-const isPanelPrivileged = (role?: string) =>
-  ["admin", "moderator"].includes(role || "");
-
 // ✅ PostMeta owner check
 const isPostMetaOwner = (reqUserId: any, postMetaAuthorId: any) =>
   reqUserId?.toString() === postMetaAuthorId?.toString();
@@ -170,10 +166,10 @@ export const editMetaComment = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
+    // ✅ Only Comment Owner OR Admin can edit
     if (
       comment.authorId.toString() !== req.user._id.toString() &&
-      !isPanelPrivileged(req.user.role) &&
-      !isPostMetaOwner(req.user._id, comment.postAuthorId)
+      req.user.role !== "admin"
     ) {
       return res.status(403).json({ message: "Forbidden" });
     }
@@ -197,9 +193,10 @@ export const deleteMetaComment = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
+    // ✅ Owner OR Admin OR PostMeta Owner can delete
     if (
       comment.authorId.toString() !== req.user._id.toString() &&
-      !isPanelPrivileged(req.user.role) &&
+      req.user.role !== "admin" &&
       !isPostMetaOwner(req.user._id, comment.postAuthorId)
     ) {
       return res.status(403).json({ message: "Forbidden" });
@@ -227,9 +224,10 @@ export const editMetaReply = async (req: Request, res: Response) => {
     const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
+    // ✅ Only Reply Owner OR Admin can edit
     if (
       reply.authorId.toString() !== req.user._id.toString() &&
-      !isPanelPrivileged(req.user.role)
+      req.user.role !== "admin"
     ) {
       return res.status(403).json({ message: "Forbidden" });
     }
@@ -257,9 +255,10 @@ export const deleteMetaReply = async (req: Request, res: Response) => {
     const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
+    // ✅ Owner OR Admin OR PostMeta Owner can delete
     if (
       reply.authorId.toString() !== req.user._id.toString() &&
-      !isPanelPrivileged(req.user.role) &&
+      req.user.role !== "admin" &&
       !isPostMetaOwner(req.user._id, comment.postAuthorId)
     ) {
       return res.status(403).json({ message: "Forbidden" });

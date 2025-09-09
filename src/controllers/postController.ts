@@ -6,7 +6,6 @@ import { getSponsoredForFeed } from "./adController";
 import { IPost } from "../models/Post";
 import { IAd } from "../models/Ad";
 
-// Union type for feed items
 type FeedItem =
   | { type: "post"; data: IPost }
   | { type: "sponsored"; data: IAd };
@@ -16,8 +15,16 @@ export const createPost = async (req: Request, res: Response) => {
   try {
     await connectDB();
 
-    // ✅ Role check — only admin & moderator can create posts
-    if (!req.user || !["admin", "moderator"].includes(req.user.role || "")) {
+    if (!req.user || !req.user.id || !req.user.role) {
+      return res.status(403).json({ message: "Access denied: not authenticated" });
+    }
+
+    // ✅ Role OR Ownership check
+    const allowedRoles = ["admin", "moderator"];
+    const isAdminOrMod = allowedRoles.includes(req.user.role);
+    const isOwner = true; // Create के समय हमेशा true (user खुद author है)
+
+    if (!isAdminOrMod && !isOwner) {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -34,18 +41,14 @@ export const createPost = async (req: Request, res: Response) => {
 
     if (files?.length) {
       for (const f of files) {
-        const up = await uploadBufferToCloudinary(
-          f.buffer,
-          f.mimetype,
-          "posts"
-        );
+        const up = await uploadBufferToCloudinary(f.buffer, f.mimetype, "posts");
         images.push(up.url);
       }
     }
 
-    const userId = req.user?.id;
-    const userName = req.user?.name || "Anonymous";
-    const userAvatar = req.user?.avatarUrl || "";
+    const userId = req.user.id;
+    const userName = req.user.name || "Anonymous";
+    const userAvatar = req.user.avatarUrl || "";
 
     const post = await Post.create({
       title,
@@ -66,9 +69,7 @@ export const createPost = async (req: Request, res: Response) => {
     return res.status(201).json({ post });
   } catch (err: any) {
     console.error("Error creating post:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -108,9 +109,7 @@ export const getFeed = async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error("Error fetching feed:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -137,8 +136,6 @@ export const getUserPosts = async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error("Error fetching user posts:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };

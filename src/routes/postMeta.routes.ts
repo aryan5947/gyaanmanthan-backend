@@ -6,11 +6,15 @@ import {
   deletePostMeta,
   getPostMetaFeed,
   getUserPostMetas,
-  getPostMetaById // ✅ Add this in controller if not already present
+  getPostMetaById,
+  likePostMeta,        // ✅ New controller
+  unlikePostMeta,      // ✅ New controller
+  savePostMeta,        // ✅ New controller
+  unsavePostMeta       // ✅ New controller
 } from "../controllers/postMetaController";
 import { auth } from "../middleware/auth";
 import { authorize } from "../middleware/authorize";
-import { filterRestricted } from "../middleware/filterRestricted"; // ✅ Added
+import { filterRestricted } from "../middleware/filterRestricted";
 
 const router = Router();
 
@@ -26,7 +30,7 @@ const upload = multer({
 router.post(
   "/",
   auth,
-  authorize(["admin", "moderator", "user"]), // role check only
+  authorize(["admin", "moderator", "user"]),
   upload.array("files", 10),
   createPostMeta
 );
@@ -35,8 +39,8 @@ router.post(
 router.put(
   "/:id",
   auth,
-  authorize(["admin", "moderator", "user"], true), // role + ownership check
-  filterRestricted("postMeta"), // ✅ Added
+  authorize(["admin", "moderator", "user"], true),
+  filterRestricted("postMeta"),
   upload.array("files", 10),
   updatePostMeta
 );
@@ -45,10 +49,38 @@ router.put(
 router.delete(
   "/:id",
   auth,
-  authorize(["admin", "user"], true), // role + ownership check
-  filterRestricted("postMeta"), // ✅ Added
+  authorize(["admin", "user"], true),
+  filterRestricted("postMeta"),
   deletePostMeta
 );
+
+// ---------------- LIKE ROUTES ----------------
+router.post(
+  "/:id/like",
+  auth,
+  likePostMeta
+);
+
+router.delete(
+  "/:id/like",
+  auth,
+  unlikePostMeta
+);
+
+// ---------------- SAVE ROUTES ----------------
+router.post(
+  "/:id/save",
+  auth,
+  savePostMeta
+);
+
+router.delete(
+  "/:id/save",
+  auth,
+  unsavePostMeta
+);
+
+// ---------------- GET ROUTES ----------------
 
 // Get PostMeta feed (Public)
 router.get("/feed", getPostMetaFeed);
@@ -57,6 +89,6 @@ router.get("/feed", getPostMetaFeed);
 router.get("/user/:id", getUserPostMetas);
 
 // Get single PostMeta by ID (Public) — block if restricted
-router.get("/:id", filterRestricted("postMeta"), getPostMetaById); // ✅ Added
+router.get("/:id", filterRestricted("postMeta"), getPostMetaById);
 
 export default router;

@@ -7,6 +7,10 @@ import {
   getFeed,
   getUserPosts,
   getPostById,
+  likePost,        // ✅ New controller
+  unlikePost,      // ✅ New controller
+  savePost,        // ✅ New controller
+  unsavePost       // ✅ New controller
 } from "../controllers/postController";
 import { auth } from "../middleware/auth";
 import { authorize } from "../middleware/authorize";
@@ -20,7 +24,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
 });
 
-// ---------------- ROUTES ----------------
+// ---------------- CREATE / UPDATE / DELETE ----------------
 
 // Create Post (Admin + Moderator + User)
 router.post(
@@ -49,6 +53,16 @@ router.delete(
   filterRestricted("post"),
   deletePost
 );
+
+// ---------------- LIKE ROUTES ----------------
+router.post("/:id/like", auth, likePost);
+router.delete("/:id/like", auth, unlikePost);
+
+// ---------------- SAVE ROUTES ----------------
+router.post("/:id/save", auth, savePost);
+router.delete("/:id/save", auth, unsavePost);
+
+// ---------------- GET ROUTES ----------------
 
 // Get Post feed (Public)
 router.get("/feed", getFeed);

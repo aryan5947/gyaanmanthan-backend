@@ -4,6 +4,8 @@ import { Post, IPost } from "../models/Post";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
 import { getSponsoredForFeed } from "./adController";
 import { IAd } from "../models/Ad";
+import { PostLike } from "../models/PostLike";
+import { SavedPost } from "../models/SavedPost";
 
 type FeedItem =
   | { type: "post"; data: IPost }
@@ -235,6 +237,94 @@ export const getPostById = async (req: Request, res: Response) => {
     return res.json(post);
   } catch (err: any) {
     console.error("Error fetching Post by ID:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ---------------- LIKE / UNLIKE POST ----------------
+export const likePost = async (req: Request, res: Response) => {
+  try {
+    await connectDB();
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+
+    const { id: postId } = req.params;
+    const userId = req.user.id;
+
+    const alreadyLiked = await PostLike.findOne({ userId, postId });
+    if (alreadyLiked) {
+      return res.status(400).json({ message: "Already liked" });
+    }
+
+    await PostLike.create({ userId, postId });
+    await Post.findByIdAndUpdate(postId, { $inc: { likeCount: 1 } });
+
+    return res.status(200).json({ message: "Post liked" });
+  } catch (err: any) {
+    console.error("Error liking post:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const unlikePost = async (req: Request, res: Response) => {
+  try {
+    await connectDB();
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+
+    const { id: postId } = req.params;
+    const userId = req.user.id;
+
+    const deleted = await PostLike.deleteOne({ userId, postId });
+    if (deleted.deletedCount > 0) {
+      await Post.findByIdAndUpdate(postId, { $inc: { likeCount: -1 } });
+    }
+
+    return res.status(200).json({ message: "Post unliked" });
+  } catch (err: any) {
+    console.error("Error unliking post:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// ---------------- SAVE / UNSAVE POST ----------------
+export const savePost = async (req: Request, res: Response) => {
+  try {
+    await connectDB();
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+
+    const { id: postId } = req.params;
+    const userId = req.user.id;
+
+    const alreadySaved = await SavedPost.findOne({ userId, postId });
+    if (alreadySaved) {
+      return res.status(400).json({ message: "Already saved" });
+    }
+
+    await SavedPost.create({ userId, postId });
+    await Post.findByIdAndUpdate(postId, { $inc: { saveCount: 1 } });
+
+    return res.status(200).json({ message: "Post saved" });
+  } catch (err: any) {
+    console.error("Error saving post:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const unsavePost = async (req: Request, res: Response) => {
+  try {
+    await connectDB();
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+
+    const { id: postId } = req.params;
+    const userId = req.user.id;
+
+    const deleted = await SavedPost.deleteOne({ userId, postId });
+    if (deleted.deletedCount > 0) {
+      await Post.findByIdAndUpdate(postId, { $inc: { saveCount: -1 } });
+    }
+
+    return res.status(200).json({ message: "Post unsaved" });
+  } catch (err: any) {
+    console.error("Error unsaving post:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

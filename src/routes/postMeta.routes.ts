@@ -6,9 +6,11 @@ import {
   deletePostMeta,
   getPostMetaFeed,
   getUserPostMetas,
+  getPostMetaById // ✅ Add this in controller if not already present
 } from "../controllers/postMetaController";
 import { auth } from "../middleware/auth";
 import { authorize } from "../middleware/authorize";
+import { filterRestricted } from "../middleware/filterRestricted"; // ✅ Added
 
 const router = Router();
 
@@ -29,20 +31,22 @@ router.post(
   createPostMeta
 );
 
-// Update PostMeta (Admin + Moderator + Owner)
+// Update PostMeta (Admin + Moderator + Owner) — block if restricted
 router.put(
   "/:id",
   auth,
   authorize(["admin", "moderator", "user"], true), // role + ownership check
+  filterRestricted("postMeta"), // ✅ Added
   upload.array("files", 10),
   updatePostMeta
 );
 
-// Delete PostMeta (Admin + Owner)
+// Delete PostMeta (Admin + Owner) — block if restricted
 router.delete(
   "/:id",
   auth,
   authorize(["admin", "user"], true), // role + ownership check
+  filterRestricted("postMeta"), // ✅ Added
   deletePostMeta
 );
 
@@ -51,5 +55,8 @@ router.get("/feed", getPostMetaFeed);
 
 // Get all PostMeta by a specific user (Public)
 router.get("/user/:id", getUserPostMetas);
+
+// Get single PostMeta by ID (Public) — block if restricted
+router.get("/:id", filterRestricted("postMeta"), getPostMetaById); // ✅ Added
 
 export default router;

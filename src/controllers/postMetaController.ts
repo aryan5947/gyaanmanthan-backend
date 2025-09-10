@@ -22,7 +22,6 @@ export const createPostMeta = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Access denied: not authenticated" });
     }
 
-    // ✅ Role OR Ownership check (create के समय ownership हमेशा true)
     const allowedRoles = ["admin", "moderator"];
     const isAdminOrMod = allowedRoles.includes(req.user.role);
     const isOwner = true;
@@ -231,5 +230,24 @@ export const getUserPostMetas = async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("Error fetching user post metas:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// ---------------- GET POST META BY ID ----------------
+export const getPostMetaById = async (req: Request, res: Response) => {
+  try {
+    await connectDB();
+
+    const { id } = req.params;
+    const postMeta = await PostMeta.findById(id).lean();
+
+    if (!postMeta) {
+      return res.status(404).json({ error: "PostMeta not found" });
+    }
+
+    return res.json(postMeta);
+  } catch (err: any) {
+    console.error("Error fetching PostMeta by ID:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };

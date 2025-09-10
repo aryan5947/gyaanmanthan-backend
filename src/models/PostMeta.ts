@@ -18,6 +18,9 @@ export interface IPostMeta extends Document {
     views: number;
     likes: number;
   };
+  status: "active" | "restricted" | "blocked" | "deleted";
+  restrictionReason?: string | null;
+  copyrightScanStatus: "pending" | "passed" | "failed" | "disputed";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +52,21 @@ const postMetaSchema = new Schema<IPostMeta>(
       views: { type: Number, default: 0 },
       likes: { type: Number, default: 0 },
     },
+
+    // ✅ Moderation + Scan Fields
+    status: {
+      type: String,
+      enum: ["active", "restricted", "blocked", "deleted"],
+      default: "active",
+      index: true
+    },
+    restrictionReason: { type: String, default: null },
+    copyrightScanStatus: {
+      type: String,
+      enum: ["pending", "passed", "failed", "disputed"],
+      default: "pending",
+      index: true
+    }
   },
   { timestamps: true }
 );

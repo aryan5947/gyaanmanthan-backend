@@ -5,7 +5,7 @@ import { uploadBufferToCloudinary } from "../utils/cloudinary";
 import { getSponsoredForFeed } from "./adController";
 import { IAd } from "../models/Ad";
 import { Like } from "../models/LikePostMeta";
-import { SavedPost } from "../models/SavedPostMeta";
+import { SavedPostMeta } from "../models/SavedPostMeta";
 
 type FeedItem =
   | { type: "post"; data: IPostMeta }
@@ -309,12 +309,12 @@ export const savePostMeta = async (req: Request, res: Response) => {
     const { id: postMetaId } = req.params;
     const userId = req.user.id;
 
-    const alreadySaved = await SavedPost.findOne({ userId, postMetaId });
+    const alreadySaved = await SavedPostMeta.findOne({ userId, postMetaId });
     if (alreadySaved) {
       return res.status(400).json({ message: "Already saved" });
     }
 
-    await SavedPost.create({ userId, postMetaId });
+    await SavedPostMeta.create({ userId, postMetaId });
     await PostMeta.findByIdAndUpdate(postMetaId, { $inc: { saveCount: 1 } });
 
     return res.status(200).json({ message: "Post saved" });
@@ -335,7 +335,7 @@ export const unsavePostMeta = async (req: Request, res: Response) => {
     const { id: postMetaId } = req.params;
     const userId = req.user.id;
 
-    const deleted = await SavedPost.deleteOne({ userId, postMetaId });
+    const deleted = await SavedPostMeta.deleteOne({ userId, postMetaId });
     if (deleted.deletedCount > 0) {
       await PostMeta.findByIdAndUpdate(postMetaId, { $inc: { saveCount: -1 } });
     }

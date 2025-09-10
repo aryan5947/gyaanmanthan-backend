@@ -15,4 +15,4 @@ const savedPostSchema = new Schema<ISavedPost>(
   { timestamps: true }
 );
 
-export const SavedPost = model<ISavedPost>("SavedPost", savedPostSchema);
+export const SavedPostMeta = model<ISavedPost>("SavedPostMeta", savedPostSchema);

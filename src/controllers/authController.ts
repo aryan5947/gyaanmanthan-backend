@@ -8,7 +8,6 @@ import { uploadBufferToCloudinary } from '../utils/cloudinary';
 
 // --- SIGNUP ---
 export const signup = async (req: Request, res: Response) => {
-  // 1. Route se aa rahe validation errors ko check karein
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -18,16 +17,29 @@ export const signup = async (req: Request, res: Response) => {
 
   try {
     const exists = await User.findOne({ $or: [{ email }, { username }] });
-    if (exists) return res.status(409).json({ message: 'Email or username already in use' });
+    if (exists) {
+      return res.status(409).json({ message: 'Email or username already in use' });
+    }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    let avatarUrl: string | undefined;
 
-    // Optional avatar upload
-    const file = (req as any).file as Express.Multer.File | undefined;
-    if (file) {
-      const up = await uploadBufferToCloudinary(file.buffer, file.mimetype, 'avatars');
+    let avatarUrl: string | undefined;
+    let bannerUrl: string | undefined;
+
+    // ✅ Multiple file fields handled (avatar + banner)
+    const files = (req as any).files as {
+      avatar?: Express.Multer.File[];
+      banner?: Express.Multer.File[];
+    };
+
+    if (files?.avatar?.[0]) {
+      const up = await uploadBufferToCloudinary(files.avatar[0].buffer, files.avatar[0].mimetype, 'avatars');
       avatarUrl = up.url;
+    }
+
+    if (files?.banner?.[0]) {
+      const up = await uploadBufferToCloudinary(files.banner[0].buffer, files.banner[0].mimetype, 'banners');
+      bannerUrl = up.url;
     }
 
     const user = await User.create({
@@ -37,10 +49,11 @@ export const signup = async (req: Request, res: Response) => {
       passwordHash,
       bio,
       avatarUrl,
+      bannerUrl, // ✅ store banner in DB
     });
 
     const token = jwt.sign({ id: user._id }, env.jwtSecret, { expiresIn: '7d' });
-    
+
     return res.status(201).json({
       token,
       user: {
@@ -50,6 +63,7 @@ export const signup = async (req: Request, res: Response) => {
         username: user.username,
         email: user.email,
         avatarUrl: user.avatarUrl,
+        bannerUrl: user.bannerUrl, // ✅ return banner
         bio: user.bio,
         plan: user.plan,
         walletBalance: user.walletBalance,
@@ -63,13 +77,12 @@ export const signup = async (req: Request, res: Response) => {
 
 // --- LOGIN ---
 export const login = async (req: Request, res: Response) => {
-  // 1. Route se aa rahe validation errors ko check karein
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { email, password } = req.body; // Use 'email' directly as per route validation
+  const { email, password } = req.body;
 
   try {
     const user = await User.findOne({
@@ -81,7 +94,7 @@ export const login = async (req: Request, res: Response) => {
     if (!ok) return res.status(401).json({ message: 'Invalid credentials' });
 
     const token = jwt.sign({ id: user._id }, env.jwtSecret, { expiresIn: '7d' });
-    
+
     return res.json({
       token,
       user: {
@@ -91,6 +104,7 @@ export const login = async (req: Request, res: Response) => {
         username: user.username,
         email: user.email,
         avatarUrl: user.avatarUrl,
+        bannerUrl: user.bannerUrl, // ✅ return banner
         bio: user.bio,
         plan: user.plan,
         walletBalance: user.walletBalance,

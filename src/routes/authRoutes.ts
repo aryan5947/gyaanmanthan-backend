@@ -5,28 +5,29 @@ import { upload } from '../middleware/upload';
 
 const router = Router();
 
-// Signup route par validation aur sanitization lagaya gaya hai.
+// ✅ Signup route with avatar + banner upload
 router.post(
   '/signup',
-  upload.single('avatar'), // File upload middleware
+  upload.fields([
+    { name: 'avatar', maxCount: 1 },
+    { name: 'banner', maxCount: 1 }
+  ]),
   [
-    // Validation rules:
     body('name', 'Name is required').not().isEmpty().trim().escape(),
     body('email', 'Please include a valid email').isEmail().normalizeEmail(),
     body('password', 'Password must be 6 or more characters').isLength({ min: 6 }),
   ],
-  signup // Controller function
+  signup
 );
 
-// Login route par bhi validation lagaya gaya hai.
+// ✅ Login route
 router.post(
   '/login',
   [
-    // Validation rules:
     body('email', 'Please include a valid email').isEmail().normalizeEmail(),
     body('password', 'Password cannot be blank').not().isEmpty(),
   ],
-  login // Controller function
+  login
 );
 
 export default router;

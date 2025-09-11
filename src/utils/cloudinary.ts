@@ -1,6 +1,8 @@
+// utils/cloudinary.ts
 import { v2 as cloudinary } from 'cloudinary';
 import { env } from '../config/env';
 
+// ✅ Flexible config: prefer full URL if provided, else use individual keys
 if (env.cloudinary.url) {
   cloudinary.config({ cloudinary_url: env.cloudinary.url });
 } else {
@@ -11,19 +13,38 @@ if (env.cloudinary.url) {
   });
 }
 
+/**
+ * Uploads a file buffer to Cloudinary
+ * @param buffer - File buffer from multer
+ * @param mimetype - MIME type of the file
+ * @param folder - Optional folder name (defaults to env.cloudinary.folder)
+ * @returns Uploaded file metadata
+ */
 export async function uploadBufferToCloudinary(
   buffer: Buffer,
   mimetype: string,
-  folder = env.cloudinary.folder
+  folder: string = env.cloudinary.folder
 ) {
-  const dataURI = `data:${mimetype};base64,${buffer.toString('base64')}`;
-  const res = await cloudinary.uploader.upload(dataURI, { folder, resource_type: 'image' });
-  return {
-    url: res.secure_url,
-    publicId: res.public_id,
-    width: res.width,
-    height: res.height,
-    bytes: res.bytes,
-    format: res.format,
-  };
+  try {
+    // ✅ Convert buffer to Data URI
+    const dataURI = `data:${mimetype};base64,${buffer.toString('base64')}`;
+
+    // ✅ Upload to Cloudinary
+    const res = await cloudinary.uploader.upload(dataURI, {
+      folder,
+      resource_type: 'image',
+    });
+
+    return {
+      url: res.secure_url,
+      publicId: res.public_id,
+      width: res.width,
+      height: res.height,
+      bytes: res.bytes,
+      format: res.format,
+    };
+  } catch (error) {
+    console.error('Cloudinary upload error:', error);
+    throw new Error('Failed to upload image to Cloudinary');
+  }
 }

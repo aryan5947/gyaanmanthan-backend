@@ -1,5 +1,10 @@
+// models/User.ts
 import { Schema, model, Document } from 'mongoose';
 
+/**
+ * IUser — TypeScript interface for User document
+ * Ensures type safety across controllers, middleware, and services
+ */
 export interface IUser extends Document {
   name: string;
   username: string;
@@ -12,34 +17,45 @@ export interface IUser extends Document {
   walletBalance: number;
   role: 'user' | 'admin' | 'moderator' | 'banned'; // ✅ RBAC ready
 
-  followersCount: number;        // ✅ total followers
-  followingCount: number;        // ✅ total following
-  postsCount: number;            // ✅ total normal posts
-  postMetaCount: number;         // ✅ total postMeta created
+  // 📊 Social graph counters
+  followersCount: number;
+  followingCount: number;
+  postsCount: number;
+  postMetaCount: number;
 
-  commentsCount: number;         // ✅ total comments on Posts
-  threadsCount: number;          // ✅ total root-level comments on Posts
-  postMetaCommentsCount: number; // ✅ total comments on PostMeta
-  postMetaThreadsCount: number;  // ✅ total root-level comments on PostMeta
+  // 🗨️ Comment counters
+  commentsCount: number;         
+  threadsCount: number;          
+  postMetaCommentsCount: number; 
+  postMetaThreadsCount: number;  
 
   createdAt: Date;
   updatedAt: Date;
 }
 
+/**
+ * userSchema — Mongoose schema definition
+ * Backward-compatible, future-proof, and optimized for scale
+ */
 const userSchema = new Schema<IUser>(
   {
+    // 🧾 Basic profile
     name: { type: String, required: true, trim: true },
-    username: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    username: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
     passwordHash: { type: String, required: true },
-    avatarUrl: String,
-    bannerUrl: String, // ✅ new banner field
-    bio: String,
+
+    // 🖼 Media
+    avatarUrl: { type: String },
+    bannerUrl: { type: String }, // ✅ new banner field
+    bio: { type: String, trim: true },
+
+    // 💳 Account & plan
     plan: { type: String, enum: ['free', 'partner'], default: 'free' },
     walletBalance: { type: Number, default: 0 },
 
-    // ✅ RBAC role
-    role: { type: String, enum: ['user', 'admin', 'moderator', 'banned'], default: 'user' },
+    // 🛡 RBAC role
+    role: { type: String, enum: ['user', 'admin', 'moderator', 'banned'], default: 'user', index: true },
 
     // 📊 Social graph counters
     followersCount: { type: Number, default: 0 },
@@ -48,10 +64,10 @@ const userSchema = new Schema<IUser>(
     postMetaCount: { type: Number, default: 0 },
 
     // 🗨️ Comment counters
-    commentsCount: { type: Number, default: 0 },         // Post comments
-    threadsCount: { type: Number, default: 0 },          // Root-level Post comments
-    postMetaCommentsCount: { type: Number, default: 0 }, // PostMeta comments
-    postMetaThreadsCount: { type: Number, default: 0 },  // Root-level PostMeta comments
+    commentsCount: { type: Number, default: 0 },         
+    threadsCount: { type: Number, default: 0 },          
+    postMetaCommentsCount: { type: Number, default: 0 }, 
+    postMetaThreadsCount: { type: Number, default: 0 },  
   },
   { timestamps: true }
 );

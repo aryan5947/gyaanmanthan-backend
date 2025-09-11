@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { PostMetaComment } from "../models/PostMetaComment";
+import { PostMetaComment } from '../models/postMetaComment';
 import { Types } from "mongoose";
 
 // ✅ PostMeta owner check

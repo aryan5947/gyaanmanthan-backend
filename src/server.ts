@@ -13,6 +13,7 @@ import { auth } from './middleware/auth'; // Auth middleware import
 
 // Routes
 import authRoutes from './routes/authRoutes';
+import followRoutes from './routes/followRoutes';
 import adminRoutes from './routes/admin.routes';
 import userRoutes from './routes/userRoutes';
 import postRoutes from './routes/postRoutes';
@@ -94,6 +95,7 @@ app.use("/api/postMeta-comments", postMetaCommentRoutes);
 
 // Fully protected routes (all endpoints require authentication)
 app.use('/api/user', auth, userRoutes);
+app.use('/api/user', auth, followRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ads', auth, adRoutes);
 app.use('/api/affiliate', auth, affiliateRoutes);

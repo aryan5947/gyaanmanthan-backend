@@ -17,9 +17,10 @@ declare module "express-serve-static-core" {
       username: string;
       email: string;
       avatarUrl?: string;
+      bannerUrl?: string; // ✅ added banner
       plan: string;
       walletBalance: number;
-      role: 'user' | 'admin' | 'moderator' | 'banned'; 
+      role: "user" | "admin" | "moderator" | "banned";
     };
   }
 }
@@ -57,14 +58,17 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
       username: user.username,
       email: user.email,
       avatarUrl: user.avatarUrl,
+      bannerUrl: user.bannerUrl, // ✅ now included in req.user
       plan: user.plan,
       walletBalance: user.walletBalance,
-      role: user.role, // ✅ Now type-safe
+      role: user.role,
     };
 
     next();
   } catch (err) {
     console.error("Auth middleware error:", err);
-    return res.status(500).json({ message: "Server error during authentication" });
+    return res
+      .status(500)
+      .json({ message: "Server error during authentication" });
   }
 }

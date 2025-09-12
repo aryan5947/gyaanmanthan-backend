@@ -94,9 +94,9 @@ router.post('/reset', async (req, res) => {
     const user = await User.findById(decoded.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Hash new password
+    // ✅ Hash new password and update correct field
     const hashed = await bcrypt.hash(newPassword, 10);
-    (user as any).password = hashed;
+    user.passwordHash = hashed; // <-- FIXED: सही field नाम
     await user.save();
 
     res.json({ message: 'Password updated successfully' });

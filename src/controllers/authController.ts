@@ -1,11 +1,12 @@
-// controllers/authController.ts
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions, Secret } from 'jsonwebtoken';
 import { User } from '../models/User';
 import { env } from '../config/env';
 import { uploadBufferToCloudinary } from '../utils/cloudinary';
+import { sendMail } from '../config/mailService';
+import { welcomeTemplate } from '../mails/emailTemplates';
 
 // --- SIGNUP ---
 export const signup = async (req: Request, res: Response) => {
@@ -64,10 +65,26 @@ export const signup = async (req: Request, res: Response) => {
       passwordHash,
       bio,
       avatarUrl,
-      bannerUrl, // ✅ store banner in DB
+      bannerUrl,
     });
 
-    // ✅ Generate JWT
+    // ✅ Generate verify token
+    const verifyToken = jwt.sign(
+      { purpose: 'verify', id: String(user._id) },
+      env.jwtSecret as Secret,
+      { expiresIn: `${env.verifyExpiryMin}m` } as SignOptions
+    );
+
+    const verifyLink = `${env.appUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+
+    // ✅ Send welcome + verify mail
+    await sendMail({
+      to: user.email,
+      subject: 'Welcome to GyaanManthan — Verify your email',
+      html: welcomeTemplate({ name: user.name || 'there', verifyLink }),
+    });
+
+    // ✅ Generate login JWT
     const token = jwt.sign({ id: user._id }, env.jwtSecret, { expiresIn: '7d' });
 
     // ✅ Respond with token + user data
@@ -80,7 +97,7 @@ export const signup = async (req: Request, res: Response) => {
         username: user.username,
         email: user.email,
         avatarUrl: user.avatarUrl,
-        bannerUrl: user.bannerUrl, // ✅ return banner
+        bannerUrl: user.bannerUrl,
         bio: user.bio,
         plan: user.plan,
         walletBalance: user.walletBalance,
@@ -95,7 +112,6 @@ export const signup = async (req: Request, res: Response) => {
 
 // --- LOGIN ---
 export const login = async (req: Request, res: Response) => {
-  // ✅ Validate request body
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -104,7 +120,6 @@ export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
-    // ✅ Allow login via email OR username
     const user = await User.findOne({
       $or: [
         { email: email.toLowerCase() },
@@ -115,16 +130,13 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // ✅ Compare password
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // ✅ Generate JWT
     const token = jwt.sign({ id: user._id }, env.jwtSecret, { expiresIn: '7d' });
 
-    // ✅ Respond with token + user data
     return res.json({
       token,
       user: {
@@ -134,7 +146,7 @@ export const login = async (req: Request, res: Response) => {
         username: user.username,
         email: user.email,
         avatarUrl: user.avatarUrl,
-        bannerUrl: user.bannerUrl, // ✅ return banner
+        bannerUrl: user.bannerUrl,
         bio: user.bio,
         plan: user.plan,
         walletBalance: user.walletBalance,

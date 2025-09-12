@@ -1,27 +1,30 @@
-import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
-import { User } from '../models/User';
-import { Follow } from '../models/Follow';
-import { Post } from '../models/Post';
-import { PostMeta } from '../models/PostMeta';
-import { Like } from '../models/LikePostMeta';
-import { PostLike } from '../models/PostLike';
-import { SavedPostMeta } from '../models/SavedPostMeta';
-import { Comment } from '../models/Comment';
-import { PostMetaComment } from '../models/postMetaComment';
-import { SavedPost } from '../models/SavedPost';
-import { uploadBufferToCloudinary } from '../utils/cloudinary';
+// controllers/userController.ts
+import { Request, Response } from "express";
+import { validationResult } from "express-validator";
+import { User } from "../models/User";
+import { Follow } from "../models/Follow";
+import { Post } from "../models/Post";
+import { PostMeta } from "../models/PostMeta";
+import { Like as LikePostMeta } from "../models/LikePostMeta";
+import { PostLike } from "../models/PostLike";
+import { SavedPostMeta } from "../models/SavedPostMeta";
+import { SavedPost } from "../models/SavedPost";
+import { Comment } from "../models/Comment";
+import { PostMetaComment } from "../models/postMetaComment";
+import { Notification } from "../models/Notification";
+import { uploadBufferToCloudinary } from "../utils/cloudinary";
 
 // --- GET CURRENT LOGGED-IN USER (FULL PROFILE) ---
 export const getMeWithFullProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
 
-    const user = await User.findById(userId).select('-passwordHash').lean();
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const user = await User.findById(userId).select("-passwordHash").lean();
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // --- Stats counts ---
     const [
+      followersList,
+      followingList,
       postMetaLikesCount,
       postLikesCount,
       postMetaSavesCount,
@@ -29,16 +32,43 @@ export const getMeWithFullProfile = async (req: Request, res: Response) => {
       postCommentsCount,
       postMetaCommentsCount,
       postThreadsCount,
-      postMetaThreadsCount
+      postMetaThreadsCount,
+      posts,
+      postMetas,
+      savedPostMetaRefs,
+      savedPostRefs,
+      likedPostMetaRefs,
+      likedPostRefs,
+      latestPostComments,
+      latestPostMetaComments,
+      notifications,
     ] = await Promise.all([
-      Like.countDocuments({ userId }),
+      Follow.find({ following: userId })
+        .populate("follower", "name username avatarUrl")
+        .lean(),
+      Follow.find({ follower: userId })
+        .populate("following", "name username avatarUrl")
+        .lean(),
+      LikePostMeta.countDocuments({ userId }),
       PostLike.countDocuments({ userId }),
       SavedPostMeta.countDocuments({ userId }),
       SavedPost.countDocuments({ userId }),
       Comment.countDocuments({ authorId: userId }),
       PostMetaComment.countDocuments({ authorId: userId }),
       Comment.countDocuments({ authorId: userId, parentId: null }),
-      PostMetaComment.countDocuments({ authorId: userId, parentId: null })
+      PostMetaComment.countDocuments({ authorId: userId, parentId: null }),
+      Post.find({ authorId: userId }).sort({ createdAt: -1 }).lean(),
+      PostMeta.find({ authorId: userId }).sort({ createdAt: -1 }).lean(),
+      SavedPostMeta.find({ userId }).select("postMetaId").lean(),
+      SavedPost.find({ userId }).select("postId").lean(),
+      LikePostMeta.find({ userId }).select("postMetaId").lean(),
+      PostLike.find({ userId }).select("postId").lean(),
+      Comment.find({ authorId: userId }).sort({ createdAt: -1 }).limit(5).lean(),
+      PostMetaComment.find({ authorId: userId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+      Notification.find({ userId }).sort({ createdAt: -1 }).lean(),
     ]);
 
     const totalLikesCount = postMetaLikesCount + postLikesCount;
@@ -46,44 +76,33 @@ export const getMeWithFullProfile = async (req: Request, res: Response) => {
     const totalCommentsCount = postCommentsCount + postMetaCommentsCount;
     const totalThreadsCount = postThreadsCount + postMetaThreadsCount;
 
-    // --- Own content ---
-    const posts = await Post.find({ authorId: userId }).sort({ createdAt: -1 }).lean();
-    const postMetas = await PostMeta.find({ authorId: userId }).sort({ createdAt: -1 }).lean();
-
-    // --- Saved items ---
-    const savedPostMetaRefs = await SavedPostMeta.find({ userId }).select('postMetaId').lean();
-    const savedPostMetas = await PostMeta.find({ _id: { $in: savedPostMetaRefs.map(r => r.postMetaId) } }).lean();
-
-    const savedPostRefs = await SavedPost.find({ userId }).select('postId').lean();
-    const savedPosts = await Post.find({ _id: { $in: savedPostRefs.map(r => r.postId) } }).lean();
-
-    // --- Liked items ---
-    const likedPostMetaRefs = await Like.find({ userId }).select('postMetaId').lean();
-    const likedPostMetas = await PostMeta.find({ _id: { $in: likedPostMetaRefs.map(r => r.postMetaId) } }).lean();
-
-    const likedPostRefs = await PostLike.find({ userId }).select('postId').lean();
-    const likedPosts = await Post.find({ _id: { $in: likedPostRefs.map(r => r.postId) } }).lean();
-
-    // --- Latest comments (top 5) ---
-    const latestPostComments = await Comment.find({ authorId: userId })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean();
-
-    const latestPostMetaComments = await PostMetaComment.find({ authorId: userId })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean();
+    const savedPostMetas = await PostMeta.find({
+      _id: { $in: savedPostMetaRefs.map((r) => r.postMetaId) },
+    }).lean();
+    const savedPosts = await Post.find({
+      _id: { $in: savedPostRefs.map((r) => r.postId) },
+    }).lean();
+    const likedPostMetas = await PostMeta.find({
+      _id: { $in: likedPostMetaRefs.map((r) => r.postMetaId) },
+    }).lean();
+    const likedPosts = await Post.find({
+      _id: { $in: likedPostRefs.map((r) => r.postId) },
+    }).lean();
 
     const latestComments = [...latestPostComments, ...latestPostMetaComments]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
       .slice(0, 5);
 
-    // --- Combined timeline ---
     const combinedTimeline = [
-      ...posts.map(p => ({ ...p, type: 'post' })),
-      ...postMetas.map(pm => ({ ...pm, type: 'postMeta' }))
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      ...posts.map((p) => ({ ...p, type: "post" })),
+      ...postMetas.map((pm) => ({ ...pm, type: "postMeta" })),
+    ].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
     return res.json({
       user: {
@@ -95,31 +114,42 @@ export const getMeWithFullProfile = async (req: Request, res: Response) => {
           likes: totalLikesCount,
           saves: totalSavesCount,
           comments: totalCommentsCount,
-          threads: totalThreadsCount
+          threads: totalThreadsCount,
         },
+        followersList: followersList.map((f) => f.follower),
+        followingList: followingList.map((f) => f.following),
         posts,
         postMetas,
-        savedItems: [...savedPosts, ...savedPostMetas],
-        likedItems: [...likedPosts, ...likedPostMetas],
+        savedPosts,
+        savedPostMetas,
+        likedPosts,
+        likedPostMetas,
         combinedTimeline,
-        latestComments
-      }
+        latestComments,
+        notifications,
+      },
     });
   } catch (error) {
-    console.error('getMeWithFullProfile Error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("getMeWithFullProfile Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-// --- GET USER PROFILE BY ID (FULL PROFILE + FOLLOW FLAGS) ---
-export const getProfileWithFullProfile = async (req: Request, res: Response) => {
+// --- GET USER PROFILE BY ID ---
+export const getProfileWithFullProfile = async (
+  req: Request,
+  res: Response
+) => {
   const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+  if (!errors.isEmpty())
+    return res.status(400).json({ errors: errors.array() });
 
   try {
     const targetUserId = req.params.id;
-    const targetUser = await User.findById(targetUserId).select('-passwordHash').lean();
-    if (!targetUser) return res.status(404).json({ message: 'User not found' });
+    const targetUser = await User.findById(targetUserId)
+      .select("-passwordHash")
+      .lean();
+    if (!targetUser) return res.status(404).json({ message: "User not found" });
 
     let isFollowing = false;
     let isMutual = false;
@@ -132,8 +162,9 @@ export const getProfileWithFullProfile = async (req: Request, res: Response) => 
       isMutual = !!currentFollowsTarget && !!targetFollowsCurrent;
     }
 
-    // --- Stats counts ---
     const [
+      followersList,
+      followingList,
       postMetaLikesCount,
       postLikesCount,
       postMetaSavesCount,
@@ -141,16 +172,47 @@ export const getProfileWithFullProfile = async (req: Request, res: Response) => 
       postCommentsCount,
       postMetaCommentsCount,
       postThreadsCount,
-      postMetaThreadsCount
+      postMetaThreadsCount,
+      posts,
+      postMetas,
+      savedPostMetaRefs,
+      savedPostRefs,
+      likedPostMetaRefs,
+      likedPostRefs,
+      latestPostComments,
+      latestPostMetaComments,
     ] = await Promise.all([
-      Like.countDocuments({ userId: targetUserId }),
+      Follow.find({ following: targetUserId })
+        .populate("follower", "name username avatarUrl")
+        .lean(),
+      Follow.find({ follower: targetUserId })
+        .populate("following", "name username avatarUrl")
+        .lean(),
+      LikePostMeta.countDocuments({ userId: targetUserId }),
       PostLike.countDocuments({ userId: targetUserId }),
       SavedPostMeta.countDocuments({ userId: targetUserId }),
       SavedPost.countDocuments({ userId: targetUserId }),
       Comment.countDocuments({ authorId: targetUserId }),
       PostMetaComment.countDocuments({ authorId: targetUserId }),
       Comment.countDocuments({ authorId: targetUserId, parentId: null }),
-      PostMetaComment.countDocuments({ authorId: targetUserId, parentId: null })
+      PostMetaComment.countDocuments({
+        authorId: targetUserId,
+        parentId: null,
+      }),
+      Post.find({ authorId: targetUserId }).sort({ createdAt: -1 }).lean(),
+      PostMeta.find({ authorId: targetUserId }).sort({ createdAt: -1 }).lean(),
+      SavedPostMeta.find({ userId: targetUserId }).select("postMetaId").lean(),
+      SavedPost.find({ userId: targetUserId }).select("postId").lean(),
+      LikePostMeta.find({ userId: targetUserId }).select("postMetaId").lean(),
+      PostLike.find({ userId: targetUserId }).select("postId").lean(),
+      Comment.find({ authorId: targetUserId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+      PostMetaComment.find({ authorId: targetUserId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
     ]);
 
     const totalLikesCount = postMetaLikesCount + postLikesCount;
@@ -158,44 +220,33 @@ export const getProfileWithFullProfile = async (req: Request, res: Response) => 
     const totalCommentsCount = postCommentsCount + postMetaCommentsCount;
     const totalThreadsCount = postThreadsCount + postMetaThreadsCount;
 
-    // --- Content ---
-    const posts = await Post.find({ authorId: targetUserId }).sort({ createdAt: -1 }).lean();
-    const postMetas = await PostMeta.find({ authorId: targetUserId }).sort({ createdAt: -1 }).lean();
-
-    // --- Saved items ---
-    const savedPostMetaRefs = await SavedPostMeta.find({ userId: targetUserId }).select('postMetaId').lean();
-    const savedPostMetas = await PostMeta.find({ _id: { $in: savedPostMetaRefs.map(r => r.postMetaId) } }).lean();
-
-    const savedPostRefs = await SavedPost.find({ userId: targetUserId }).select('postId').lean();
-    const savedPosts = await Post.find({ _id: { $in: savedPostRefs.map(r => r.postId) } }).lean();
-
-    // --- Liked items ---
-    const likedPostMetaRefs = await Like.find({ userId: targetUserId }).select('postMetaId').lean();
-    const likedPostMetas = await PostMeta.find({ _id: { $in: likedPostMetaRefs.map(r => r.postMetaId) } }).lean();
-
-    const likedPostRefs = await PostLike.find({ userId: targetUserId }).select('postId').lean();
-    const likedPosts = await Post.find({ _id: { $in: likedPostRefs.map(r => r.postId) } }).lean();
-
-    // --- Latest comments (top 5) ---
-    const latestPostComments = await Comment.find({ authorId: targetUserId })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean();
-
-    const latestPostMetaComments = await PostMetaComment.find({ authorId: targetUserId })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean();
+    const savedPostMetas = await PostMeta.find({
+      _id: { $in: savedPostMetaRefs.map((r) => r.postMetaId) },
+    }).lean();
+    const savedPosts = await Post.find({
+      _id: { $in: savedPostRefs.map((r) => r.postId) },
+    }).lean();
+    const likedPostMetas = await PostMeta.find({
+      _id: { $in: likedPostMetaRefs.map((r) => r.postMetaId) },
+    }).lean();
+    const likedPosts = await Post.find({
+      _id: { $in: likedPostRefs.map((r) => r.postId) },
+    }).lean();
 
     const latestComments = [...latestPostComments, ...latestPostMetaComments]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
       .slice(0, 5);
 
-    // --- Combined timeline ---
     const combinedTimeline = [
-      ...posts.map(p => ({ ...p, type: 'post' })),
-      ...postMetas.map(pm => ({ ...pm, type: 'postMeta' }))
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      ...posts.map((p) => ({ ...p, type: "post" })),
+      ...postMetas.map((pm) => ({ ...pm, type: "postMeta" })),
+    ].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
     return res.json({
       user: {
@@ -209,19 +260,23 @@ export const getProfileWithFullProfile = async (req: Request, res: Response) => 
           likes: totalLikesCount,
           saves: totalSavesCount,
           comments: totalCommentsCount,
-          threads: totalThreadsCount
+          threads: totalThreadsCount,
         },
+        followersList: followersList.map((f) => f.follower),
+        followingList: followingList.map((f) => f.following),
         posts,
         postMetas,
-        savedItems: [...savedPosts, ...savedPostMetas],
-        likedItems: [...likedPosts, ...likedPostMetas],
+        savedPosts,
+        savedPostMetas,
+        likedPosts,
+        likedPostMetas,
         combinedTimeline,
-        latestComments
-      }
+        latestComments,
+      },
     });
   } catch (error) {
-    console.error('getProfileWithFullProfile Error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("getProfileWithFullProfile Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -244,49 +299,44 @@ export const updateProfile = async (req: Request, res: Response) => {
   if (location) updates.location = location;
 
   try {
-    // ✅ Multiple file fields: avatar + banner
     const files = (req as any).files as {
       avatar?: Express.Multer.File[];
       banner?: Express.Multer.File[];
     };
 
-    // Avatar upload
     if (files?.avatar?.[0]) {
       const up = await uploadBufferToCloudinary(
         files.avatar[0].buffer,
         files.avatar[0].mimetype,
-        'avatars'
+        "avatars"
       );
       updates.avatarUrl = up.url;
     }
 
-    // Banner upload
     if (files?.banner?.[0]) {
       const up = await uploadBufferToCloudinary(
         files.banner[0].buffer,
         files.banner[0].mimetype,
-        'banners'
+        "banners"
       );
       updates.bannerUrl = up.url;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user!.id,
-      updates,
-      { new: true }
-    ).select('-passwordHash');
+    const updatedUser = await User.findByIdAndUpdate(req.user!.id, updates, {
+      new: true,
+    }).select("-passwordHash");
 
     if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     return res.json({
-      message: 'Profile updated successfully',
-      user: updatedUser
+      message: "Profile updated successfully",
+      user: updatedUser,
     });
   } catch (error) {
-    console.error('UpdateProfile Error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("UpdateProfile Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -298,7 +348,7 @@ export const deleteProfile = async (req: Request, res: Response) => {
     await Promise.all([
       Post.deleteMany({ authorId: userId }),
       PostMeta.deleteMany({ authorId: userId }),
-      Like.deleteMany({ userId }),
+      LikePostMeta.deleteMany({ userId }),
       PostLike.deleteMany({ userId }),
       SavedPostMeta.deleteMany({ userId }),
       SavedPost.deleteMany({ userId }),
@@ -310,9 +360,9 @@ export const deleteProfile = async (req: Request, res: Response) => {
 
     await User.findByIdAndDelete(userId);
 
-    res.json({ message: 'Profile and all related data deleted successfully' });
+    res.json({ message: "Profile and all related data deleted successfully" });
   } catch (error) {
-    console.error('DeleteProfile Error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("DeleteProfile Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };

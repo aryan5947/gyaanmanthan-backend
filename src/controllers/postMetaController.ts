@@ -3,6 +3,7 @@ import { connectDB } from "../config/db";
 import { PostMeta, IPostMeta } from "../models/PostMeta";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
 import { getSponsoredForFeed } from "./adController";
+import mongoose from "mongoose"
 import { IAd } from "../models/Ad";
 import { Like } from "../models/LikePostMeta";
 import { SavedPostMeta } from "../models/SavedPostMeta";
@@ -250,13 +251,10 @@ export const getPostMetaById = async (req: Request, res: Response) => {
 export const likePostMeta = async (req: Request, res: Response) => {
   try {
     await connectDB();
-
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
 
     const { id: postMetaId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     // Prevent duplicate likes
     const alreadyLiked = await Like.findOne({ userId, postMetaId });
@@ -265,9 +263,15 @@ export const likePostMeta = async (req: Request, res: Response) => {
     }
 
     await Like.create({ userId, postMetaId });
-    await PostMeta.findByIdAndUpdate(postMetaId, { $inc: { likeCount: 1 } });
+    await PostMeta.findByIdAndUpdate(postMetaId, { $inc: { "stats.likes": 1 } });
 
-    return res.status(200).json({ message: "Post liked" });
+    // Populate full PostMeta for response
+    const updatedPostMeta = await PostMeta.findById(postMetaId)
+      .select("title description category tags files authorId authorName authorAvatar stats createdAt")
+      .populate("authorId", "name username avatarUrl")
+      .lean();
+
+    return res.status(200).json({ message: "Post liked", postMeta: updatedPostMeta });
   } catch (err: any) {
     console.error("Error liking post meta:", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -277,20 +281,22 @@ export const likePostMeta = async (req: Request, res: Response) => {
 export const unlikePostMeta = async (req: Request, res: Response) => {
   try {
     await connectDB();
-
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
 
     const { id: postMetaId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const deleted = await Like.deleteOne({ userId, postMetaId });
     if (deleted.deletedCount > 0) {
-      await PostMeta.findByIdAndUpdate(postMetaId, { $inc: { likeCount: -1 } });
+      await PostMeta.findByIdAndUpdate(postMetaId, { $inc: { "stats.likes": -1 } });
     }
 
-    return res.status(200).json({ message: "Post unliked" });
+    const updatedPostMeta = await PostMeta.findById(postMetaId)
+      .select("title description category tags files authorId authorName authorAvatar stats createdAt")
+      .populate("authorId", "name username avatarUrl")
+      .lean();
+
+    return res.status(200).json({ message: "Post unliked", postMeta: updatedPostMeta });
   } catch (err: any) {
     console.error("Error unliking post meta:", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -301,13 +307,10 @@ export const unlikePostMeta = async (req: Request, res: Response) => {
 export const savePostMeta = async (req: Request, res: Response) => {
   try {
     await connectDB();
-
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
 
     const { id: postMetaId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const alreadySaved = await SavedPostMeta.findOne({ userId, postMetaId });
     if (alreadySaved) {
@@ -317,7 +320,12 @@ export const savePostMeta = async (req: Request, res: Response) => {
     await SavedPostMeta.create({ userId, postMetaId });
     await PostMeta.findByIdAndUpdate(postMetaId, { $inc: { saveCount: 1 } });
 
-    return res.status(200).json({ message: "Post saved" });
+    const updatedPostMeta = await PostMeta.findById(postMetaId)
+      .select("title description category tags files authorId authorName authorAvatar stats createdAt")
+      .populate("authorId", "name username avatarUrl")
+      .lean();
+
+    return res.status(200).json({ message: "Post saved", postMeta: updatedPostMeta });
   } catch (err: any) {
     console.error("Error saving post meta:", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -327,20 +335,22 @@ export const savePostMeta = async (req: Request, res: Response) => {
 export const unsavePostMeta = async (req: Request, res: Response) => {
   try {
     await connectDB();
-
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
 
     const { id: postMetaId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const deleted = await SavedPostMeta.deleteOne({ userId, postMetaId });
     if (deleted.deletedCount > 0) {
       await PostMeta.findByIdAndUpdate(postMetaId, { $inc: { saveCount: -1 } });
     }
 
-    return res.status(200).json({ message: "Post unsaved" });
+    const updatedPostMeta = await PostMeta.findById(postMetaId)
+      .select("title description category tags files authorId authorName authorAvatar stats createdAt")
+      .populate("authorId", "name username avatarUrl")
+      .lean();
+
+    return res.status(200).json({ message: "Post unsaved", postMeta: updatedPostMeta });
   } catch (err: any) {
     console.error("Error unsaving post meta:", err);
     return res.status(500).json({ error: "Internal server error" });

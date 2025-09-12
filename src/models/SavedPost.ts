@@ -1,16 +1,17 @@
-// src/models/SavedPost.ts
-import { Schema, model, Document } from "mongoose";
+import { Schema, model, Document, Types } from "mongoose";
+import { IPost } from "./Post"; // Post interface import
 
 export interface ISavedPost extends Document {
-  userId: string;
-  postId: string;
+  userId: Types.ObjectId;              // jis user ne save kiya
+  postId: Types.ObjectId | IPost;       // saved Post ka reference ya populated object
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const savedPostSchema = new Schema<ISavedPost>(
   {
-    userId: { type: String, required: true },
-    postId: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    postId: { type: Schema.Types.ObjectId, ref: "Post", required: true, index: true }
   },
   { timestamps: true }
 );

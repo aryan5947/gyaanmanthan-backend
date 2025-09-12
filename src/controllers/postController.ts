@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { connectDB } from "../config/db";
 import { Post, IPost } from "../models/Post";
+import mongoose from "mongoose";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
 import { getSponsoredForFeed } from "./adController";
 import { IAd } from "../models/Ad";
@@ -248,7 +249,7 @@ export const likePost = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "Not authenticated" });
 
     const { id: postId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const alreadyLiked = await PostLike.findOne({ userId, postId });
     if (alreadyLiked) {
@@ -258,7 +259,12 @@ export const likePost = async (req: Request, res: Response) => {
     await PostLike.create({ userId, postId });
     await Post.findByIdAndUpdate(postId, { $inc: { likeCount: 1 } });
 
-    return res.status(200).json({ message: "Post liked" });
+    // Populate full post details for response
+    const updatedPost = await Post.findById(postId)
+      .populate("authorId", "name username avatarUrl")
+      .lean();
+
+    return res.status(200).json({ message: "Post liked", post: updatedPost });
   } catch (err: any) {
     console.error("Error liking post:", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -271,14 +277,18 @@ export const unlikePost = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "Not authenticated" });
 
     const { id: postId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const deleted = await PostLike.deleteOne({ userId, postId });
     if (deleted.deletedCount > 0) {
       await Post.findByIdAndUpdate(postId, { $inc: { likeCount: -1 } });
     }
 
-    return res.status(200).json({ message: "Post unliked" });
+    const updatedPost = await Post.findById(postId)
+      .populate("authorId", "name username avatarUrl")
+      .lean();
+
+    return res.status(200).json({ message: "Post unliked", post: updatedPost });
   } catch (err: any) {
     console.error("Error unliking post:", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -292,7 +302,7 @@ export const savePost = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "Not authenticated" });
 
     const { id: postId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const alreadySaved = await SavedPost.findOne({ userId, postId });
     if (alreadySaved) {
@@ -302,7 +312,11 @@ export const savePost = async (req: Request, res: Response) => {
     await SavedPost.create({ userId, postId });
     await Post.findByIdAndUpdate(postId, { $inc: { saveCount: 1 } });
 
-    return res.status(200).json({ message: "Post saved" });
+    const updatedPost = await Post.findById(postId)
+      .populate("authorId", "name username avatarUrl")
+      .lean();
+
+    return res.status(200).json({ message: "Post saved", post: updatedPost });
   } catch (err: any) {
     console.error("Error saving post:", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -315,14 +329,18 @@ export const unsavePost = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "Not authenticated" });
 
     const { id: postId } = req.params;
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const deleted = await SavedPost.deleteOne({ userId, postId });
     if (deleted.deletedCount > 0) {
       await Post.findByIdAndUpdate(postId, { $inc: { saveCount: -1 } });
     }
 
-    return res.status(200).json({ message: "Post unsaved" });
+    const updatedPost = await Post.findById(postId)
+      .populate("authorId", "name username avatarUrl")
+      .lean();
+
+    return res.status(200).json({ message: "Post unsaved", post: updatedPost });
   } catch (err: any) {
     console.error("Error unsaving post:", err);
     return res.status(500).json({ error: "Internal server error" });

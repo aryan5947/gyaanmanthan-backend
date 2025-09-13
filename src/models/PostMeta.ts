@@ -28,7 +28,7 @@ export interface IPostMeta extends Document {
 const postMetaSchema = new Schema<IPostMeta>(
   {
     title: { type: String, required: true, trim: true },
-    description: { type: String, required: true, trim: true },
+    description: { type: String, required: false, trim: true },
     category: { type: String, default: "General", index: true },
     tags: [{ type: String, index: true }],
 

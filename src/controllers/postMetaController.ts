@@ -26,8 +26,8 @@ export const createPostMeta = async (req: Request, res: Response) => {
     }
 
     const { title, description, category, tags } = req.body;
-    if (!title || !description) {
-      return res.status(400).json({ message: "Title and description are required" });
+    if (!title) {
+     return res.status(400).json({ message: "Title is required" });
     }
 
     const filesArr: { url: string; type: string; name?: string; size?: number }[] = [];

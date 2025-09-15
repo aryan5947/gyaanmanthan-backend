@@ -1,5 +1,5 @@
 export const logger = {
-  info: (...args: any[]) => console.log('ℹ️', ...args),
-  warn: (...args: any[]) => console.warn('⚠️', ...args),
-  error: (...args: any[]) => console.error('❌', ...args),
+  info: (...args: unknown[]) => console.log('ℹ️', ...args),
+  warn: (...args: unknown[]) => console.warn('⚠️', ...args),
+  error: (...args: unknown[]) => console.error('❌', ...args),
 };

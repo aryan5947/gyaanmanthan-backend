@@ -7,7 +7,7 @@ function required(name: string): string {
 }
 
 export const env = {
-  // ⚡️ fallback 8000 kar diya (Koyeb expects 8000)
+  // ⚡️ fallback 8000 (Koyeb expects 8000)
   port: parseInt(process.env.PORT || '8000', 10),
   nodeEnv: process.env.NODE_ENV ?? 'development',
 
@@ -43,4 +43,14 @@ export const env = {
 
   // App URL for email links
   appUrl: process.env.APP_URL || 'https://gyaanmanthan.in',
+
+  // Telegram Admin Panel
+  telegram: {
+    botToken: required('TELEGRAM_BOT_TOKEN'),
+    chatId: required('TELEGRAM_CHAT_ID'),
+    allowedChatIds: (process.env.TELEGRAM_ALLOWED_CHAT_IDS || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean),
+  }
 };

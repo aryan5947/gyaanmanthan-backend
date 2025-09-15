@@ -15,6 +15,7 @@ import { auth } from './middleware/auth';
 import authRoutes from './routes/authRoutes';
 import followRoutes from './routes/followRoutes';
 import adminRoutes from './routes/admin.routes';
+import telegramWebhook from './routes/telegramWebhook';
 import userRoutes from './routes/userRoutes';
 import postRoutes from './routes/postRoutes';
 import postMetaRoutes from './routes/postMeta.routes';
@@ -103,6 +104,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/ads', auth, adRoutes);
 app.use('/api/affiliate', auth, affiliateRoutes);
 app.use('/api/wallet', auth, walletRoutes);
+
+// Telegram webhook route (no auth)
+app.use(telegramWebhook); // ✅ Add this
 
 // --- ERROR HANDLING ---
 app.use(errorHandler);

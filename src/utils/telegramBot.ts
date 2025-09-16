@@ -1,8 +1,10 @@
 import { env } from '../config/env.js';
 import { TelegramButton } from '../types/telegram.js';
 import { logger } from './logger.js';
+import { PostMeta } from '../models/PostMeta.js'; // named import
+import { Post } from '../models/Post.js'; // named import
 
-// Base API URL using new nested env
+// Base API URL
 const API_URL = `https://api.telegram.org/bot${env.telegram.botToken}`;
 
 /**
@@ -86,4 +88,68 @@ export async function answerCallback(callbackId: string, text: string) {
 export async function setWebhook(url: string) {
   const res = await fetch(`${API_URL}/setWebhook?url=${encodeURIComponent(url)}`);
   logger.info('setWebhook status:', res.status);
+}
+
+/**
+ * Handle incoming Telegram webhook updates (messages + callbacks)
+ */
+export async function handleTelegramUpdate(update: any) {
+  try {
+    if (update.callback_query) {
+      const callbackId = update.callback_query.id;
+      const data = update.callback_query.data;
+      const chatId = update.callback_query.message.chat.id;
+      const messageId = update.callback_query.message.message_id;
+
+      // 🗑 Delete Post
+      if (data.startsWith('delete_')) {
+        const postMetaId = data.split('_')[1];
+        try {
+          // Delete from PostMeta
+          await PostMeta.deleteOne({ _id: postMetaId });
+          // Delete from Post (main posts collection)
+          await Post.deleteOne({ _id: postMetaId });
+
+          await answerCallback(callbackId, `✅ Post ${postMetaId} deleted`);
+          // Update original Telegram message
+          await fetch(`${API_URL}/editMessageText`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              message_id: messageId,
+              text: `🗑 Post ${postMetaId} deleted successfully`
+            })
+          });
+        } catch (err) {
+          logger.error('Delete via Telegram failed:', err);
+          await answerCallback(callbackId, `❌ Failed to delete post ${postMetaId}`);
+        }
+      }
+
+      // ✅ ResolveMeta
+      if (data.startsWith('resolveMeta_')) {
+        const reportId = data.split('_')[1];
+        await answerCallback(callbackId, `✅ Report ${reportId} resolved`);
+        await fetch(`${API_URL}/editMessageText`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId,
+            text: `✅ Report ${reportId} marked as resolved`
+          })
+        });
+      }
+
+      // 🚫 Ban User
+      if (data.startsWith('ban_')) {
+        const userId = data.split('_')[1];
+        // TODO: integrate your ban logic here
+        await answerCallback(callbackId, `🚫 User ${userId} banned`);
+      }
+    }
+  } catch (err) {
+    logger.error('handleTelegramUpdate error:', err);
+  }
 }

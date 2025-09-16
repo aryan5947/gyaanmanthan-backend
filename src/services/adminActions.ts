@@ -1,3 +1,10 @@
+import mongoose from 'mongoose';
+import { Post } from '../models/Post.js';
+import { PostMeta } from '../models/PostMeta.js';
+import { PostMetaReport } from '../models/PostMetaReport.js';
+import { PostReport } from '../models/PostReport.js';
+import { User } from '../models/User.js';
+
 export interface AdminActionResult {
   ok: boolean;
   message: string;
@@ -7,7 +14,8 @@ export interface AdminActionResult {
  * Ban a user by ID
  */
 export async function banUser(userId: string): Promise<AdminActionResult> {
-  // TODO: update users set status='banned' where id = userId
+  const objectId = new mongoose.Types.ObjectId(userId);
+  await User.updateOne({ _id: objectId }, { $set: { status: 'banned' } });
   return { ok: true, message: `User ${userId} banned 🚫` };
 }
 
@@ -15,15 +23,29 @@ export async function banUser(userId: string): Promise<AdminActionResult> {
  * Unban a user by ID
  */
 export async function unbanUser(userId: string): Promise<AdminActionResult> {
-  // TODO: update users set status='active' where id = userId
+  const objectId = new mongoose.Types.ObjectId(userId);
+  await User.updateOne({ _id: objectId }, { $set: { status: 'active' } });
   return { ok: true, message: `User ${userId} unbanned ✅` };
 }
 
 /**
- * Delete a post by ID
+ * Delete a post by ID (also handles PostMeta)
  */
 export async function deletePost(postId: string): Promise<AdminActionResult> {
-  // TODO: delete from posts where id = postId (or soft delete)
+  const objectId = new mongoose.Types.ObjectId(postId);
+
+  // Soft delete in Post
+  await Post.updateOne(
+    { _id: objectId },
+    { $set: { status: 'deleted', updatedAt: new Date() } }
+  );
+
+  // Soft delete in PostMeta
+  await PostMeta.updateOne(
+    { _id: objectId },
+    { $set: { status: 'deleted', updatedAt: new Date() } }
+  );
+
   return { ok: true, message: `Post ${postId} deleted 🗑️` };
 }
 
@@ -31,7 +53,11 @@ export async function deletePost(postId: string): Promise<AdminActionResult> {
  * Resolve a post report by ID
  */
 export async function resolveReport(reportId: string): Promise<AdminActionResult> {
-  // TODO: update reports set status='resolved' where id = reportId
+  const objectId = new mongoose.Types.ObjectId(reportId);
+  await PostReport.updateOne(
+    { _id: objectId },
+    { $set: { status: 'resolved', updatedAt: new Date() } }
+  );
   return { ok: true, message: `Post Report ${reportId} resolved ✅` };
 }
 
@@ -39,7 +65,11 @@ export async function resolveReport(reportId: string): Promise<AdminActionResult
  * Resolve a postMeta report by ID
  */
 export async function resolveMetaReport(metaReportId: string): Promise<AdminActionResult> {
-  // TODO: update postMetaReports set status='resolved' where id = metaReportId
+  const objectId = new mongoose.Types.ObjectId(metaReportId);
+  await PostMetaReport.updateOne(
+    { _id: objectId },
+    { $set: { status: 'resolved', updatedAt: new Date() } }
+  );
   return { ok: true, message: `PostMeta Report ${metaReportId} resolved ✅` };
 }
 
@@ -47,13 +77,12 @@ export async function resolveMetaReport(metaReportId: string): Promise<AdminActi
  * Get site-wide stats for dashboard or Telegram
  */
 export async function getSiteStats(): Promise<string> {
-  // TODO: query counts from DB
-  const users = 1200;
-  const posts = 540;
-  const reportsOpen = 7;
-  const reportsTotal = 152;
-  const metaReportsOpen = 3;
-  const metaReportsTotal = 48;
+  const users = await User.countDocuments();
+  const posts = await Post.countDocuments();
+  const reportsOpen = await PostReport.countDocuments({ status: 'open' });
+  const reportsTotal = await PostReport.countDocuments();
+  const metaReportsOpen = await PostMetaReport.countDocuments({ status: 'open' });
+  const metaReportsTotal = await PostMetaReport.countDocuments();
 
   return [
     `👥 Users: ${users}`,

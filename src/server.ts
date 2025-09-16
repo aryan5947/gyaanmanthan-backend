@@ -24,74 +24,76 @@ import commentRoutes from './routes/commentRoutes';
 import postMetaCommentRoutes from './routes/postMetaComment.routes';
 import affiliateRoutes from './routes/affiliateRoutes';
 import walletRoutes from './routes/walletRoutes';
-
-// 📨 Auth mail routes (email verification + password reset)
 import authMailRoutes from './routes/authMail';
 
 const app = express();
 
 // --- SECURITY MIDDLEWARES ---
 
-// 1. Set security-related HTTP response headers
+// 1. Security headers
 app.use(helmet());
 
-// 2. Configure CORS
+// 2. Telegram webhook FIRST (skip CORS, ratelimit, auth)
+app.post('/telegram-webhook', express.json(), telegramWebhook);
+
+// 3. Configure CORS
 const allowedOrigins = [
   'http://localhost:3000', // React
   'http://localhost:5173', // Vite
   'https://gyaanmanthan.in', // Production domain
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: Function) {
+    // Allow requests with no origin (like Telegram webhooks)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+};
 
-// 3. Rate Limiting
+app.use(cors(corsOptions));
+
+// 4. Rate Limiting (only /api)
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many requests from this IP, please try again after 15 minutes',
 });
-
 app.use('/api', apiLimiter);
 
 // --- CORE MIDDLEWARES ---
 
-// 4. Body parser
+// 5. Body parser
 app.use(express.json({ limit: '2mb' }));
 
-// 5. Sanitize data
+// 6. Sanitize against NoSQL injection
 app.use(mongoSanitize());
 
-// 6. HTTP request logger
+// 7. Logger
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 
-// 7. Serve favicon
-app.use('/favicon.ico', express.static(path.join(__dirname, 'public', 'favicon.ico')));
+// 8. Serve favicon
+app.use(
+  '/favicon.ico',
+  express.static(path.join(__dirname, 'public', 'favicon.ico'))
+);
 
 // --- ROUTES ---
 
-// Health check endpoint
+// Health check
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // Public routes
 app.use('/api/auth', authRoutes);
-
-// Email verification + password reset routes
 app.use('/api/auth-mail', authMailRoutes);
 
-// Mixed (public/private) endpoints
+// Mixed (public/private)
 app.use('/api/posts', postRoutes);
 app.use('/api/post-meta', postMetaRoutes);
 app.use('/api/comments', commentRoutes);
@@ -104,9 +106,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/ads', auth, adRoutes);
 app.use('/api/affiliate', auth, affiliateRoutes);
 app.use('/api/wallet', auth, walletRoutes);
-
-// Telegram webhook route (no auth)
-app.use(telegramWebhook); // ✅ Add this
 
 // --- ERROR HANDLING ---
 app.use(errorHandler);

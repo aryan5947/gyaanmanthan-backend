@@ -13,6 +13,7 @@ import { auth } from './middleware/auth';
 
 // Routes
 import authRoutes from './routes/authRoutes';
+import notificationRoutes from "./routes/notificationRoutes";
 import followRoutes from './routes/followRoutes';
 import adminRoutes from './routes/admin.routes';
 import telegramWebhook from './routes/telegramWebhook';
@@ -102,6 +103,7 @@ app.use('/api/postMeta-comments', postMetaCommentRoutes);
 // Fully protected routes
 app.use('/api/user', auth, userRoutes);
 app.use('/api/user', auth, followRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ads', auth, adRoutes);
 app.use('/api/affiliate', auth, affiliateRoutes);

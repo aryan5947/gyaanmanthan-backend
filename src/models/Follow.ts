@@ -1,6 +1,8 @@
+// src/models/Follow.ts
 import { Schema, model, Document, Types } from "mongoose";
 import { User } from "./User";
 import { withTypedMiddleware } from "../utils/withTypedMiddleware";
+import { createNotification } from "../utils/createNotification";
 
 export interface IFollow extends Document {
   follower: Types.ObjectId;
@@ -29,12 +31,27 @@ followSchema.pre("save", function (next) {
   next();
 });
 
-// 📊 Auto increment
+// 📊 Auto increment + 🔔 Notification trigger
 followSchema.post("save", async function (doc) {
   await Promise.all([
     User.findByIdAndUpdate(doc.follower, { $inc: { followingCount: 1 } }),
     User.findByIdAndUpdate(doc.following, { $inc: { followersCount: 1 } })
   ]);
+
+  // 🔔 Send notification to the followed user
+  try {
+    const followerUser = await User.findById(doc.follower).select("username");
+    if (followerUser) {
+      await createNotification({
+        userId: doc.following,
+        type: "follow",
+        message: `${followerUser.username} started following you`,
+        relatedUser: doc.follower
+      });
+    }
+  } catch (err) {
+    console.error("Notification error on follow:", err);
+  }
 });
 
 // 📉 Auto decrement

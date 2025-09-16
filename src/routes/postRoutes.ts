@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import mongoose from "mongoose";
 import {
   createPost,
   updatePost,
@@ -16,19 +17,22 @@ import { auth } from "../middleware/auth";
 import { authorize } from "../middleware/authorize";
 import { filterRestricted } from "../middleware/filterRestricted";
 import { sendTelegramAlertWithButtons } from "../utils/telegramBot.js";
+import { createNotification } from "../utils/createNotification";
+import { Post } from "../models/Post";
 import { v4 as uuidv4 } from "uuid";
 
 const router = Router();
 
-// Multer setup (for file uploads, Cloudinary integration will happen in controller)
+// Minimal shape for lean() projection
+type PostOwner = { user: mongoose.Types.ObjectId };
+
+// Multer setup (for file uploads)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
 });
 
 // ---------------- CREATE / UPDATE / DELETE ----------------
-
-// Create Post (Admin + Moderator + User)
 router.post(
   "/",
   auth,
@@ -37,7 +41,6 @@ router.post(
   createPost
 );
 
-// Update Post (Admin + Moderator + Owner) — block if restricted
 router.put(
   "/:id",
   auth,
@@ -47,7 +50,6 @@ router.put(
   updatePost
 );
 
-// Delete Post (Admin + Owner) — block if restricted
 router.delete(
   "/:id",
   auth,
@@ -57,14 +59,64 @@ router.delete(
 );
 
 // ---------------- LIKE ROUTES ----------------
-router.post("/:id/like", auth, likePost);
+router.post("/:id/like", auth, async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
+    }
+
+    await likePost(req, res);
+
+    const post = await Post.findById(req.params.id)
+      .select("user")
+      .lean<PostOwner>();
+
+    if (post && req.user.id !== post.user.toString()) {
+      await createNotification({
+        userId: post.user,
+        type: "like",
+        message: `${req.user.username} liked your post`,
+        relatedUser: new mongoose.Types.ObjectId(req.user.id),
+        relatedPost: new mongoose.Types.ObjectId(req.params.id)
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete("/:id/like", auth, unlikePost);
 
 // ---------------- SAVE ROUTES ----------------
-router.post("/:id/save", auth, savePost);
+router.post("/:id/save", auth, async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
+    }
+
+    await savePost(req, res);
+
+    const post = await Post.findById(req.params.id)
+      .select("user")
+      .lean<PostOwner>();
+
+    if (post && req.user.id !== post.user.toString()) {
+      await createNotification({
+        userId: post.user,
+        type: "save",
+        message: `${req.user.username} saved your post`,
+        relatedUser: new mongoose.Types.ObjectId(req.user.id),
+        relatedPost: new mongoose.Types.ObjectId(req.params.id)
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete("/:id/save", auth, unsavePost);
 
-// ---------------- REPORT ROUTE (Direct Telegram) ----------------
+// ---------------- REPORT ROUTE (Direct Telegram + Notification) ----------------
 router.post("/:postId/report", auth, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ ok: false, message: "Unauthorized" });
@@ -93,6 +145,20 @@ By: ${reportedBy}`,
         [{ text: "🚫 Ban User", callback_data: `ban_${reportedBy}` }],
       ]
     );
+
+    const post = await Post.findById(postId)
+      .select("user")
+      .lean<PostOwner>();
+
+    if (post) {
+      await createNotification({
+        userId: post.user,
+        type: "report",
+        message: `Your post was reported by ${req.user.username}`,
+        relatedUser: new mongoose.Types.ObjectId(req.user.id),
+        relatedPost: new mongoose.Types.ObjectId(postId)
+      });
+    }
 
     return res.status(201).json({
       ok: true,

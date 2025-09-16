@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import mongoose from "mongoose";
 import {
   createPostMeta,
   updatePostMeta,
@@ -16,9 +17,14 @@ import { auth } from "../middleware/auth";
 import { authorize } from "../middleware/authorize";
 import { filterRestricted } from "../middleware/filterRestricted";
 import { sendTelegramAlertWithButtons } from "../utils/telegramBot.js";
+import { createNotification } from "../utils/createNotification";
+import { PostMeta } from "../models/PostMeta";
 import { v4 as uuidv4 } from "uuid";
 
 const router = Router();
+
+// Minimal shape for lean() projection
+type PostMetaOwner = { user: mongoose.Types.ObjectId };
 
 // Multer setup for file uploads (memory storage for Cloudinary)
 const upload = multer({
@@ -53,17 +59,65 @@ router.delete(
 );
 
 // ---------------- LIKE ROUTES ----------------
-router.post("/:id/like", auth, likePostMeta);
+router.post("/:id/like", auth, async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
+    }
+
+    await likePostMeta(req, res);
+
+    const postMeta = await PostMeta.findById(req.params.id)
+      .select("user")
+      .lean<PostMetaOwner>();
+
+    if (postMeta && req.user.id !== postMeta.user.toString()) {
+      await createNotification({
+        userId: postMeta.user, // already ObjectId
+        type: "like",
+        message: `${req.user.username} liked your postMeta`,
+        relatedUser: new mongoose.Types.ObjectId(req.user.id),
+        relatedPostMeta: new mongoose.Types.ObjectId(req.params.id)
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete("/:id/like", auth, unlikePostMeta);
 
 // ---------------- SAVE ROUTES ----------------
-router.post("/:id/save", auth, savePostMeta);
+router.post("/:id/save", auth, async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
+    }
+
+    await savePostMeta(req, res);
+
+    const postMeta = await PostMeta.findById(req.params.id)
+      .select("user")
+      .lean<PostMetaOwner>();
+
+    if (postMeta && req.user.id !== postMeta.user.toString()) {
+      await createNotification({
+        userId: postMeta.user, // already ObjectId
+        type: "save",
+        message: `${req.user.username} saved your postMeta`,
+        relatedUser: new mongoose.Types.ObjectId(req.user.id),
+        relatedPostMeta: new mongoose.Types.ObjectId(req.params.id)
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete("/:id/save", auth, unsavePostMeta);
 
-
-// ---------------- REPORT ROUTE (Direct Telegram) ----------------
+// ---------------- REPORT ROUTE (Direct Telegram + Notification) ----------------
 router.post("/:postMetaId/report", auth, async (req, res) => {
-  // ✅ Runtime guard so TS knows user is defined
   if (!req.user) {
     return res.status(401).json({ ok: false, message: "Unauthorized" });
   }
@@ -73,7 +127,6 @@ router.post("/:postMetaId/report", auth, async (req, res) => {
   const reportedBy = req.user.id;
   const reportId = uuidv4();
 
-  // ✅ Validate reason
   if (!reason || typeof reason !== "string" || !reason.trim()) {
     return res.status(400).json({ ok: false, message: "Reason is required" });
   }
@@ -93,12 +146,26 @@ By: ${reportedBy}`,
       ]
     );
 
+    const postMeta = await PostMeta.findById(postMetaId)
+      .select("user")
+      .lean<PostMetaOwner>();
+
+    if (postMeta) {
+      await createNotification({
+        userId: postMeta.user, // already ObjectId
+        type: "report",
+        message: `Your postMeta was reported by ${req.user.username}`,
+        relatedUser: new mongoose.Types.ObjectId(req.user.id),
+        relatedPostMeta: new mongoose.Types.ObjectId(postMetaId)
+      });
+    }
+
     return res.status(201).json({
       ok: true,
       message: "Report submitted successfully",
       reportId
     });
-  } catch (err: any) { // ✅ err typed as any so .message works
+  } catch (err: any) {
     console.error("Telegram send failed:", err);
     return res.status(500).json({
       ok: false,

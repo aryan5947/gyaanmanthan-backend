@@ -1,4 +1,3 @@
-// models/User.ts
 import { Schema, model, Document } from 'mongoose';
 
 /**
@@ -28,6 +27,9 @@ export interface IUser extends Document {
   threadsCount: number;          
   postMetaCommentsCount: number; 
   postMetaThreadsCount: number;  
+
+  // 🏅 Golden tick status
+  isGoldenVerified: boolean;
 
   createdAt: Date;
   updatedAt: Date;
@@ -68,6 +70,9 @@ const userSchema = new Schema<IUser>(
     threadsCount: { type: Number, default: 0 },          
     postMetaCommentsCount: { type: Number, default: 0 }, 
     postMetaThreadsCount: { type: Number, default: 0 },  
+
+    // 🏅 Golden tick status
+    isGoldenVerified: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

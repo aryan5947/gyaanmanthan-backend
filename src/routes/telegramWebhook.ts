@@ -1,78 +1,26 @@
 import { Router, Request, Response } from 'express';
-import { answerCallback, sendTelegramAlert } from '../utils/telegramBot.js';
+import { handleTelegramUpdate, sendTelegramMessage } from '../utils/telegramBot.js';
 import { env } from '../config/env.js';
-import {
-  banUser,
-  deletePost,
-  getSiteStats,
-  resolveReport,
-  resolveMetaReport,
-  unbanUser
-} from '../services/adminActions.js';
 import { TelegramUpdate } from '../types/telegram.js';
 
 const router = Router();
 
 function isAdminChat(chatId: number): boolean {
-  const allowed = new Set([
-    env.telegram.chatId,
-    ...env.telegram.allowedChatIds
-  ].map(String));
-
+  const allowed = new Set(
+    [env.telegram.chatId, ...env.telegram.allowedChatIds].map(String)
+  );
   return allowed.has(String(chatId));
 }
 
 router.post('/telegram-webhook', async (req: Request, res: Response) => {
   const update = req.body as TelegramUpdate;
 
-  // 🔹 Handle inline button clicks
+  // 🔹 Handle inline button clicks (callback_query)
   if (update.callback_query) {
-    const cb = update.callback_query;
-    const chatId = cb.message.chat.id;
+    const chatId = update.callback_query.message.chat.id;
     if (!isAdminChat(chatId)) return res.sendStatus(200);
 
-    const data = cb.data || '';
-    const [cmd, id] = data.split('_');
-
-    try {
-      switch (cmd) {
-        case 'resolve': {
-          const r = await resolveReport(id);
-          await answerCallback(cb.id, r.message);
-          break;
-        }
-        case 'resolveMeta': {
-          const r = await resolveMetaReport(id);
-          await answerCallback(cb.id, r.message);
-          break;
-        }
-        case 'delete': {
-          const r = await deletePost(id);
-          await answerCallback(cb.id, r.message);
-          break;
-        }
-        case 'ban': {
-          const r = await banUser(id);
-          await answerCallback(cb.id, r.message);
-          break;
-        }
-        case 'unban': {
-          const r = await unbanUser(id);
-          await answerCallback(cb.id, r.message);
-          break;
-        }
-        case 'stats': {
-          const stats = await getSiteStats();
-          await answerCallback(cb.id, stats);
-          break;
-        }
-        default:
-          await answerCallback(cb.id, 'Unknown action ❓');
-      }
-    } catch (e: any) {
-      await answerCallback(cb.id, `Action failed: ${e?.message || 'error'}`);
-    }
-
+    await handleTelegramUpdate(update);
     return res.sendStatus(200);
   }
 
@@ -86,38 +34,31 @@ router.post('/telegram-webhook', async (req: Request, res: Response) => {
 
     switch (command) {
       case '/ban':
-        await banUser(arg);
-        await sendTelegramAlert('🚫 User Banned', `User ID: ${arg}`);
+        await sendTelegramMessage(`🚫 Ban user: ${arg}`, chatId);
         break;
       case '/unban':
-        await unbanUser(arg);
-        await sendTelegramAlert('✅ User Unbanned', `User ID: ${arg}`);
+        await sendTelegramMessage(`♻️ Unban user: ${arg}`, chatId);
         break;
       case '/deletepost':
-        await deletePost(arg);
-        await sendTelegramAlert('🗑️ Post Deleted', `Post ID: ${arg}`);
+        await sendTelegramMessage(`🗑 Delete post: ${arg}`, chatId);
         break;
       case '/resolvereport':
-        await resolveReport(arg);
-        await sendTelegramAlert('📌 Post Report Resolved', `Report ID: ${arg}`);
+        await sendTelegramMessage(`📌 Resolve report: ${arg}`, chatId);
         break;
       case '/resolveMeta':
-        await resolveMetaReport(arg);
-        await sendTelegramAlert('📌 PostMeta Report Resolved', `Meta Report ID: ${arg}`);
+        await sendTelegramMessage(`📌 Resolve meta report: ${arg}`, chatId);
         break;
-      case '/stats': {
-        const stats = await getSiteStats();
-        await sendTelegramAlert('📊 Site Stats', stats);
+      case '/stats':
+        await sendTelegramMessage(`📊 Stats requested`, chatId);
         break;
-      }
       case '/help':
-        await sendTelegramAlert(
-          'ℹ️ Commands',
-          '/ban <userId>\n/unban <userId>\n/deletepost <postId>\n/resolvereport <reportId>\n/resolveMeta <metaReportId>\n/stats'
+        await sendTelegramMessage(
+          `ℹ️ Commands\n/ban <userId>\n/unban <userId>\n/deletepost <postId>\n/resolvereport <reportId>\n/resolveMeta <metaReportId>\n/stats`,
+          chatId
         );
         break;
       default:
-        // ignore others
+        // ignore
         break;
     }
 

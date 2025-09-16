@@ -63,6 +63,24 @@ export async function setWebhook(url: string) {
   logger.info('setWebhook status:', res.status);
 }
 
+// -------------------- sendTelegramAlert --------------------
+
+export async function sendTelegramAlert(title: string, details: string, chatId?: string | number) {
+  const chat_id = chatId ?? env.telegram.chatId;
+  const text = `📢 *${title}*\n${details}\n🕒 ${new Date().toLocaleString()}`;
+
+  const res = await fetch(`${API_URL}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id, text, parse_mode: 'Markdown' })
+  });
+
+  if (!res.ok) {
+    logger.error('Telegram sendMessage (alert) failed:', res.status, await res.text());
+  }
+}
+
+
 // -------------------- Inline keyboards --------------------
 
 function buildUserActionsButtons(user: any): TelegramButton[][] {

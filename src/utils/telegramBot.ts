@@ -1,8 +1,9 @@
 import { env } from '../config/env.js';
 import { TelegramButton } from '../types/telegram.js';
 import { logger } from './logger.js';
-import { PostMeta } from '../models/PostMeta.js'; // named import
-import { Post } from '../models/Post.js'; // named import
+import { PostMeta } from '../models/PostMeta.js';
+import { Post } from '../models/Post.js';
+import mongoose from 'mongoose';
 
 // Base API URL
 const API_URL = `https://api.telegram.org/bot${env.telegram.botToken}`;
@@ -12,13 +13,11 @@ const API_URL = `https://api.telegram.org/bot${env.telegram.botToken}`;
  */
 export async function sendTelegramMessage(text: string, chatId?: string | number) {
   const chat_id = chatId ?? env.telegram.chatId;
-
   const res = await fetch(`${API_URL}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id, text })
   });
-
   if (!res.ok) {
     const t = await res.text();
     logger.error('Telegram sendMessage failed:', res.status, t);
@@ -48,7 +47,6 @@ export async function sendTelegramAlertWithButtons(
 ) {
   const chat_id = chatId ?? env.telegram.chatId;
   const text = `📢 *${title}*\n${details}\n🕒 ${new Date().toLocaleString()}`;
-
   const res = await fetch(`${API_URL}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -59,7 +57,6 @@ export async function sendTelegramAlertWithButtons(
       reply_markup: { inline_keyboard: buttons }
     })
   });
-
   if (!res.ok) {
     const t = await res.text();
     logger.error('Telegram sendMessage (buttons) failed:', res.status, t);
@@ -75,7 +72,6 @@ export async function answerCallback(callbackId: string, text: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ callback_query_id: callbackId, text, show_alert: false })
   });
-
   if (!res.ok) {
     const t = await res.text();
     logger.error('Telegram answerCallbackQuery failed:', res.status, t);
@@ -101,24 +97,32 @@ export async function handleTelegramUpdate(update: any) {
       const chatId = update.callback_query.message.chat.id;
       const messageId = update.callback_query.message.message_id;
 
-      // 🗑 Delete Post
+      // 🗑 Delete Post (soft delete)
       if (data.startsWith('delete_')) {
         const postMetaId = data.split('_')[1];
         try {
-          // Delete from PostMeta
-          await PostMeta.deleteOne({ _id: postMetaId });
-          // Delete from Post (main posts collection)
-          await Post.deleteOne({ _id: postMetaId });
+          const objectId = new mongoose.Types.ObjectId(postMetaId);
 
-          await answerCallback(callbackId, `✅ Post ${postMetaId} deleted`);
-          // Update original Telegram message
+          // Soft delete in PostMeta
+          await PostMeta.updateOne(
+            { _id: objectId },
+            { $set: { status: 'deleted', updatedAt: new Date() } }
+          );
+
+          // Soft delete in Post
+          await Post.updateOne(
+            { _id: objectId },
+            { $set: { status: 'deleted', updatedAt: new Date() } }
+          );
+
+          await answerCallback(callbackId, `✅ Post ${postMetaId} marked as deleted`);
           await fetch(`${API_URL}/editMessageText`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
               message_id: messageId,
-              text: `🗑 Post ${postMetaId} deleted successfully`
+              text: `🗑 Post ${postMetaId} marked as deleted`
             })
           });
         } catch (err) {

@@ -5,7 +5,7 @@ import { PostMeta } from "../models/PostMeta";
 import { sendTelegramAlertWithButtons } from "../utils/telegramBot";
 import { createNotification } from "../utils/createNotification";
 
-type PostMetaOwner = { user: mongoose.Types.ObjectId };
+type PostMetaOwner = { authorId: mongoose.Types.ObjectId };
 
 export async function reportPostMeta(req: Request, res: Response) {
   if (!req.user) {
@@ -39,17 +39,19 @@ By: ${reportedBy}`,
 
     // 2️⃣ Notify postMeta owner
     const postMeta = await PostMeta.findById(postMetaId)
-      .select("user")
+      .select("authorId") // ✅ correct field
       .lean<PostMetaOwner>();
 
-    if (postMeta) {
+    if (postMeta?.authorId) {
       await createNotification({
-        userId: postMeta.user,
+        userId: postMeta.authorId, // ✅ now correct
         type: "report",
         message: `Your postMeta was reported by ${req.user.username}`,
         relatedUser: new mongoose.Types.ObjectId(req.user.id),
         relatedPostMeta: new mongoose.Types.ObjectId(postMetaId)
       });
+    } else {
+      console.warn(`PostMeta ${postMetaId} has no authorId — skipping notification`);
     }
 
     return res.status(201).json({

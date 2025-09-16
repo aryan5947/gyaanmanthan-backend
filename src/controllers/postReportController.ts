@@ -5,7 +5,7 @@ import { Post } from "../models/Post";
 import { sendTelegramAlertWithButtons } from "../utils/telegramBot";
 import { createNotification } from "../utils/createNotification";
 
-type PostOwner = { user: mongoose.Types.ObjectId };
+type PostOwner = { authorId: mongoose.Types.ObjectId };
 
 export async function reportPost(req: Request, res: Response) {
   if (!req.user) {
@@ -39,17 +39,19 @@ By: ${reportedBy}`,
 
     // 2️⃣ Notify post owner
     const post = await Post.findById(postId)
-      .select("user")
+      .select("authorId") // ✅ correct field
       .lean<PostOwner>();
 
-    if (post) {
+    if (post?.authorId) {
       await createNotification({
-        userId: post.user,
+        userId: post.authorId, // ✅ now correct
         type: "report",
         message: `Your post was reported by ${req.user.username}`,
         relatedUser: new mongoose.Types.ObjectId(req.user.id),
         relatedPost: new mongoose.Types.ObjectId(postId)
       });
+    } else {
+      console.warn(`Post ${postId} has no authorId — skipping notification`);
     }
 
     return res.status(201).json({

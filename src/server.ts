@@ -26,6 +26,7 @@ import postMetaCommentRoutes from './routes/postMetaComment.routes';
 import affiliateRoutes from './routes/affiliateRoutes';
 import walletRoutes from './routes/walletRoutes';
 import authMailRoutes from './routes/authMail';
+import telegramRoutes from "./routes/telegram";
 
 const app = express();
 
@@ -36,6 +37,9 @@ app.use(helmet());
 
 // 2. Telegram webhook FIRST (skip CORS, ratelimit, auth)
 app.post('/telegram-webhook', express.json(), telegramWebhook);
+
+// ✅ Mount Telegram routes with a base path
+app.use("/api/telegram", telegramRoutes);
 
 // 3. Configure CORS
 const allowedOrigins = [

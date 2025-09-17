@@ -31,6 +31,11 @@ export interface IUser extends Document {
   // 🏅 Golden tick status
   isGoldenVerified: boolean;
 
+  // 📩 Telegram integration
+  telegramChatId?: number | null;
+  telegramUsername?: string | null;
+  telegramLinkedAt?: Date | null;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,7 +54,7 @@ const userSchema = new Schema<IUser>(
 
     // 🖼 Media
     avatarUrl: { type: String },
-    bannerUrl: { type: String }, // ✅ new banner field
+    bannerUrl: { type: String },
     bio: { type: String, trim: true },
 
     // 💳 Account & plan
@@ -72,7 +77,12 @@ const userSchema = new Schema<IUser>(
     postMetaThreadsCount: { type: Number, default: 0 },  
 
     // 🏅 Golden tick status
-    isGoldenVerified: { type: Boolean, default: false }
+    isGoldenVerified: { type: Boolean, default: false },
+
+    // 📩 Telegram integration
+    telegramChatId: { type: Number, default: null, index: true },
+    telegramUsername: { type: String, default: null },
+    telegramLinkedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );

@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import { PostMeta } from "../models/PostMeta";
-import { sendTelegramAlertWithButtons } from "../utils/telegramBot";
+import { PostMetaReport } from "../models/PostMetaReport";
+import { sendTelegramAlertWithButtons, sendTelegramMessage } from "../utils/telegramBot";
 import { createNotification } from "../utils/createNotification";
 
 type PostMetaOwner = { authorId: mongoose.Types.ObjectId };
@@ -22,14 +23,26 @@ export async function reportPostMeta(req: Request, res: Response) {
   }
 
   try {
-    // 1️⃣ Telegram alert to admins
+    // 0️⃣ Save report in DB
+    await PostMetaReport.create({
+      postMetaId: new mongoose.Types.ObjectId(postMetaId),
+      reporterId: new mongoose.Types.ObjectId(reportedBy),
+      reason: reason.trim(),
+      status: "open"
+    });
+
+    // 🔗 Direct link to reported PostMeta
+    const postMetaLink = `${process.env.APP_BASE_URL}/post-meta/${postMetaId}`;
+
+    // 1️⃣ Telegram alert to admins (with link)
     await sendTelegramAlertWithButtons(
       "🚨 PostMeta Reported",
       `Report ID: ${reportId}
 PostMeta ID: ${postMetaId}
 Reason: ${reason}
 Details: ${details?.trim() || "—"}
-By: ${reportedBy}`,
+By: ${reportedBy}
+🔗 [View PostMeta](${postMetaLink})`,
       [
         [{ text: "✅ ResolveMeta", callback_data: `resolveMeta_${reportId}` }],
         [{ text: "🗑 Delete Post", callback_data: `delete_${postMetaId}` }],
@@ -37,21 +50,42 @@ By: ${reportedBy}`,
       ]
     );
 
-    // 2️⃣ Notify postMeta owner
+    // 2️⃣ Notify postMeta owner (structured)
     const postMeta = await PostMeta.findById(postMetaId)
-      .select("authorId") // ✅ correct field
+      .select("authorId")
       .lean<PostMetaOwner>();
 
     if (postMeta?.authorId) {
       await createNotification({
-        userId: postMeta.authorId, // ✅ now correct
+        userId: postMeta.authorId,
         type: "report",
         message: `Your postMeta was reported by ${req.user.username}`,
+        reason,
+        details: details?.trim() || "—",
+        link: postMetaLink,
         relatedUser: new mongoose.Types.ObjectId(req.user.id),
         relatedPostMeta: new mongoose.Types.ObjectId(postMetaId)
       });
     } else {
-      console.warn(`PostMeta ${postMetaId} has no authorId — skipping notification`);
+      console.warn(`PostMeta ${postMetaId} has no authorId — skipping owner notification`);
+    }
+
+    // 3️⃣ Notify reporter (acknowledgement)
+    await createNotification({
+      userId: new mongoose.Types.ObjectId(reportedBy),
+      type: "report_ack",
+      message: `Thanks for reporting. Our team will review your report for PostMeta ID: ${postMetaId}`,
+      reason,
+      details: details?.trim() || "—",
+      link: postMetaLink
+    });
+
+    // 4️⃣ Optional: Telegram DM to reporter (if chatId stored in user profile)
+    if ((req.user as any).telegramChatId) {
+      await sendTelegramMessage(
+        (req.user as any).telegramChatId,
+        `✅ Thanks for reporting!\n\nPostMeta ID: ${postMetaId}\nReason: ${reason}\nDetails: ${details?.trim() || "—"}\n\nOur team will review it shortly.`
+      );
     }
 
     return res.status(201).json({

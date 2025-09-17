@@ -234,9 +234,15 @@ export const getUserPosts = async (req: Request, res: Response) => {
       .limit(Number(limit))
       .lean();
 
+    // ✅ Inject type field so frontend can detect it's a Post
+    const postsWithType = posts.map(p => ({
+      ...p,
+      type: "post"
+    }));
+
     return res.json({
-      posts,
-      nextCursor: posts.length > 0 ? posts[posts.length - 1]._id : null,
+      posts: postsWithType,
+      nextCursor: postsWithType.length > 0 ? postsWithType[postsWithType.length - 1]._id : null,
     });
   } catch (err: any) {
     console.error("Error fetching user posts:", err);

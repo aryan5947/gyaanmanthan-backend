@@ -10,7 +10,7 @@ import { Like } from "../models/LikePostMeta";
 import { SavedPostMeta } from "../models/SavedPostMeta";
 
 type FeedItem =
-  | { type: "post"; data: IPostMeta }
+   | { type: "postMeta"; data: IPostMeta }
   | { type: "sponsored"; data: IAd };
 
 // ---------------- CREATE POST META ----------------
@@ -199,9 +199,10 @@ export const getPostMetaFeed = async (req: Request, res: Response) => {
       .limit(Number(limit))
       .lean();
 
+    // ✅ Set correct type so frontend knows it's a PostMeta
     const feed: FeedItem[] = posts.map((p) => ({
-      type: "post",
-      data: p as unknown as IPostMeta,
+      type: "postMeta",
+      data: { ...p, type: "postMeta" } as unknown as IPostMeta, // inject type in data too
     }));
 
     const sponsored = await getSponsoredForFeed(req);
@@ -236,9 +237,15 @@ export const getUserPostMetas = async (req: Request, res: Response) => {
       .limit(Number(limit))
       .lean();
 
+    // ✅ Inject type field so frontend can detect it's a PostMeta
+    const postsWithType = posts.map(pm => ({
+      ...pm,
+      type: "postMeta"
+    }));
+
     return res.json({
-      posts,
-      nextCursor: posts.length > 0 ? posts[posts.length - 1]._id : null,
+      posts: postsWithType,
+      nextCursor: postsWithType.length > 0 ? postsWithType[postsWithType.length - 1]._id : null,
     });
   } catch (err: any) {
     console.error("Error fetching user post metas:", err);

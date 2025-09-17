@@ -149,7 +149,6 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
   }
 };
 
-
 // ---------------- DELETE POST ----------------
 export const deletePost = async (req: Request, res: Response) => {
   try {

@@ -3,6 +3,7 @@ import { connectDB } from "../config/db";
 import { PostMeta, IPostMeta } from "../models/PostMeta";
 import { User } from "../models/User";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
+import { getSponsoredForFeed } from "./adController";
 import mongoose from "mongoose";
 import { IAd } from "../models/Ad";
 import { Like } from "../models/LikePostMeta";
@@ -155,7 +156,6 @@ export const updatePostMeta = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
-
 
 // ---------------- DELETE POST META ----------------
 export const deletePostMeta = async (req: Request, res: Response) => {

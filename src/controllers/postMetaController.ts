@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { connectDB } from "../config/db";
 import { PostMeta, IPostMeta } from "../models/PostMeta";
+import { User } from "../models/User";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
-import { getSponsoredForFeed } from "./adController";
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 import { IAd } from "../models/Ad";
 import { Like } from "../models/LikePostMeta";
 import { SavedPostMeta } from "../models/SavedPostMeta";
@@ -17,7 +17,7 @@ export const createPostMeta = async (req: Request, res: Response) => {
   try {
     await connectDB();
 
-    if (!req.user || !req.user.id || !req.user.role) {
+    if (!req.user?.id || !req.user.role) {
       console.warn("Unauthorized access attempt:", {
         headers: req.headers,
         user: req.user,
@@ -27,7 +27,7 @@ export const createPostMeta = async (req: Request, res: Response) => {
 
     const { title, description, category, tags } = req.body;
     if (!title) {
-     return res.status(400).json({ message: "Title is required" });
+      return res.status(400).json({ message: "Title is required" });
     }
 
     const filesArr: { url: string; type: string; name?: string; size?: number }[] = [];
@@ -49,9 +49,13 @@ export const createPostMeta = async (req: Request, res: Response) => {
       }
     }
 
-    const userId = req.user.id;
-    const userName = req.user.name || "Anonymous";
-    const userAvatar = req.user.avatarUrl || "";
+    // ✅ Fetch username + avatar + golden tick from DB
+    const userDoc = await User.findById(req.user.id).select(
+      "name username avatarUrl isGoldenVerified"
+    );
+    if (!userDoc) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     const postMeta = await PostMeta.create({
       title,
@@ -63,9 +67,11 @@ export const createPostMeta = async (req: Request, res: Response) => {
         ? tags.split(",").map((t: string) => t.trim())
         : [],
       files: filesArr,
-      authorId: userId,
-      authorName: userName,
-      authorAvatar: userAvatar,
+      authorId: userDoc._id,
+      authorName: userDoc.name,
+      authorUsername: userDoc.username,       // ✅ from DB
+      authorAvatar: userDoc.avatarUrl || "",
+      isGoldenVerified: userDoc.isGoldenVerified // ✅ from DB
     });
 
     return res.status(201).json({ postMeta });
@@ -95,6 +101,17 @@ export const updatePostMeta = async (req: Request, res: Response) => {
 
     if (!isOwner && !isAdminOrMod) {
       return res.status(403).json({ message: "Not authorized to edit this post" });
+    }
+
+    // ✅ Refresh author info from DB
+    const userDoc = await User.findById(postMeta.authorId).select(
+      "name username avatarUrl isGoldenVerified"
+    );
+    if (userDoc) {
+      postMeta.authorName = userDoc.name;
+      postMeta.authorUsername = userDoc.username;
+      postMeta.authorAvatar = userDoc.avatarUrl || "";
+      postMeta.isGoldenVerified = userDoc.isGoldenVerified;
     }
 
     if (title) postMeta.title = title;
@@ -138,6 +155,7 @@ export const updatePostMeta = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // ---------------- DELETE POST META ----------------
 export const deletePostMeta = async (req: Request, res: Response) => {
@@ -354,5 +372,24 @@ export const unsavePostMeta = async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("Error unsaving post meta:", err);
     return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const viewPostMeta = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const viewerId = (req as any).user?._id; // agar tum JWT middleware se user attach karte ho
+    const viewerIp = req.ip;
+
+    const updated = await PostMeta.incrementView(id, viewerId, viewerIp);
+
+    if (!updated) {
+      return res.status(404).json({ message: "PostMeta not found" });
+    }
+
+    return res.json(updated);
+  } catch (error) {
+    console.error("Error incrementing PostMeta view:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

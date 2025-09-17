@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { connectDB } from "../config/db";
 import { Post, IPost } from "../models/Post";
+import { User } from "../models/User";
 import mongoose from "mongoose";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
 import { getSponsoredForFeed } from "./adController";
@@ -12,18 +13,21 @@ type FeedItem =
   | { type: "post"; data: IPost }
   | { type: "sponsored"; data: IAd };
 
+// ✅ AuthRequest now just reuses globally declared Request type
+type AuthRequest = Request;
+
 // ---------------- CREATE POST ----------------
-export const createPost = async (req: Request, res: Response) => {
+export const createPost = async (req: AuthRequest, res: Response) => {
   try {
     await connectDB();
 
-    if (!req.user || !req.user.id || !req.user.role) {
+    if (!req.user?.id || !req.user.role) {
       return res.status(403).json({ message: "Access denied: not authenticated" });
     }
 
     const allowedRoles = ["admin", "moderator"];
     const isAdminOrMod = allowedRoles.includes(req.user.role);
-    const isOwner = true; // create के समय हमेशा true
+    const isOwner = true; // create ke time hamesha true
 
     if (!isAdminOrMod && !isOwner) {
       return res.status(403).json({ message: "Access denied" });
@@ -47,9 +51,13 @@ export const createPost = async (req: Request, res: Response) => {
       }
     }
 
-    const userId = req.user.id;
-    const userName = req.user.name || "Anonymous";
-    const userAvatar = req.user.avatarUrl || "";
+    // ✅ Fetch username + avatar + golden tick from DB
+    const userDoc = await User.findById(req.user.id).select(
+      "name username avatarUrl isGoldenVerified"
+    );
+    if (!userDoc) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     const post = await Post.create({
       title,
@@ -62,9 +70,11 @@ export const createPost = async (req: Request, res: Response) => {
         ? tags.split(",").map((t: string) => t.trim())
         : [],
       images,
-      authorId: userId,
-      authorName: userName,
-      authorAvatar: userAvatar,
+      authorId: userDoc._id,
+      authorName: userDoc.name,
+      authorUsername: userDoc.username,       // ✅ from DB
+      authorAvatar: userDoc.avatarUrl || "",
+      isGoldenVerified: userDoc.isGoldenVerified // ✅ from DB
     });
 
     return res.status(201).json({ post });
@@ -75,7 +85,7 @@ export const createPost = async (req: Request, res: Response) => {
 };
 
 // ---------------- UPDATE POST ----------------
-export const updatePost = async (req: Request, res: Response) => {
+export const updatePost = async (req: AuthRequest, res: Response) => {
   try {
     await connectDB();
 
@@ -94,6 +104,17 @@ export const updatePost = async (req: Request, res: Response) => {
 
     if (!isOwner && !isAdminOrMod) {
       return res.status(403).json({ message: "Not authorized to edit this post" });
+    }
+
+    // ✅ Refresh author info from DB
+    const userDoc = await User.findById(post.authorId).select(
+      "name username avatarUrl isGoldenVerified"
+    );
+    if (userDoc) {
+      post.authorName = userDoc.name;
+      post.authorUsername = userDoc.username;
+      post.authorAvatar = userDoc.avatarUrl || "";
+      post.isGoldenVerified = userDoc.isGoldenVerified;
     }
 
     if (title) post.title = title;
@@ -127,6 +148,7 @@ export const updatePost = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // ---------------- DELETE POST ----------------
 export const deletePost = async (req: Request, res: Response) => {
@@ -344,5 +366,25 @@ export const unsavePost = async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("Error unsaving post:", err);
     return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+export const viewPost = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const viewerId = (req as any).user?._id; // JWT middleware se user attach hota hai
+    const viewerIp = req.ip;
+
+    const updatedPost = await Post.incrementView(id, viewerId, viewerIp);
+
+    if (!updatedPost) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    return res.json(updatedPost);
+  } catch (error) {
+    console.error("Error incrementing Post view:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -5,8 +5,6 @@ import { User } from "../models/User";
 import { Follow } from "../models/Follow";
 import { Post } from "../models/Post";
 import { PostMeta } from "../models/PostMeta";
-import crypto from "crypto";
-import { TelegramLinkToken } from "../models/TelegramLinkToken";
 import { Like as LikePostMeta } from "../models/LikePostMeta";
 import { PostLike } from "../models/PostLike";
 import { SavedPostMeta } from "../models/SavedPostMeta";
@@ -366,51 +364,5 @@ export const deleteProfile = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("DeleteProfile Error:", error);
     res.status(500).json({ message: "Server error" });
-  }
-};
-
-
-export const connectTelegram = async (req: Request, res: Response) => {
-  try {
-    console.log("🔹 [connectTelegram] Route hit");
-    console.log("req.user:", req.user);
-
-    if (!req.user?._id) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: Missing or invalid token"
-      });
-    }
-
-    // 1️⃣ Unique JTI बनाओ (secure random string)
-    const jti = crypto.randomBytes(16).toString("hex");
-
-    // 2️⃣ Expiry set करो (उदाहरण: 10 मिनट बाद expire)
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    // 3️⃣ Token DB में save करो
-    await TelegramLinkToken.create({
-      userId: req.user._id,
-      jti,
-      expiresAt,
-      used: false
-    });
-
-    // 4️⃣ Telegram deep link बनाओ
-    const authUrl = `https://t.me/gyaanmanthan_bot?start=${jti}`;
-
-    console.log(`✅ Generated Telegram authUrl for ${req.user.username}: ${authUrl}`);
-
-    return res.json({
-      success: true,
-      authUrl
-    });
-
-  } catch (err) {
-    console.error("❌ Telegram connect error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Server error while connecting Telegram"
-    });
   }
 };

@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { param, body } from 'express-validator';
 import { auth } from '../middleware/auth';
+import { connectTelegramTest } from "../controllers/connectTelegramTest";
 import { upload } from '../middleware/upload';
 import {
-  connectTelegram,
   getMeWithFullProfile,
   getProfileWithFullProfile,
   updateProfile,
@@ -18,6 +18,13 @@ const router = Router();
  * @access  Private
  */
 router.get('/me', auth, getMeWithFullProfile);
+
+/**
+ * @route   GET /users/connect-telegram-test
+ * @desc    Generate Telegram bot deep link for account linking (test)
+ * @access  Private
+ */
+router.get("/connect-telegram-test", auth, connectTelegramTest);
 
 /**
  * @route   GET /users/:id
@@ -71,12 +78,5 @@ router.put(
  * @access  Private
  */
 router.delete('/', auth, deleteProfile);
-
-/**
- * @route   GET /users/connect-telegram
- * @desc    Generate Telegram bot deep link for account linking
- * @access  Private
- */
-router.get('/connect-telegram', auth, connectTelegram);
 
 export default router;

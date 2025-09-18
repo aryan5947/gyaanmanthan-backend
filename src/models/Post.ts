@@ -5,7 +5,8 @@ import { User } from "./User";
 export interface IPost extends Document {
   title: string;
   description: string;
-  content: string;
+  // ⚡️ String se Array<any> me convert
+  content: any[];
   category: string;
   tags: string[];
   images: string[];
@@ -27,22 +28,40 @@ export interface IPost extends Document {
 
 // 🏗 Model statics interface
 export interface IPostModel extends Model<IPost> {
-  incrementView(postId: Types.ObjectId | string, viewerId?: Types.ObjectId | string, viewerIp?: string): Promise<IPost | null>;
+  incrementView(
+    postId: Types.ObjectId | string,
+    viewerId?: Types.ObjectId | string,
+    viewerIp?: string
+  ): Promise<IPost | null>;
 }
 
 const postSchema = new Schema<IPost>(
   {
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
-    content: { type: String, required: true },
+
+    // ⚡️ String -> Array / Mixed
+    content: { type: Schema.Types.Mixed, required: true },
+
     category: { type: String, default: "General", index: true },
     tags: [{ type: String, index: true }],
     images: [{ type: String }],
 
     // ✅ Author Info
-    authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    authorId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
     authorName: { type: String, required: true, trim: true },
-    authorUsername: { type: String, required: true, trim: true, lowercase: true, index: true },
+    authorUsername: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
     authorAvatar: { type: String },
     isGoldenVerified: { type: Boolean, default: false, index: true },
 
@@ -57,21 +76,21 @@ const postSchema = new Schema<IPost>(
       type: String,
       enum: ["active", "restricted", "blocked", "deleted"],
       default: "active",
-      index: true
+      index: true,
     },
     restrictionReason: { type: String, default: null },
     copyrightScanStatus: {
       type: String,
       enum: ["pending", "passed", "failed", "disputed"],
       default: "pending",
-      index: true
-    }
+      index: true,
+    },
   },
   { timestamps: true }
 );
 
 //
-// 📊 Auto‑increment/decrement User.postsCount
+// 📊 Auto-increment/decrement User.postsCount
 //
 postSchema.post("save", async function (doc) {
   try {
@@ -94,41 +113,107 @@ postSchema.post("findOneAndDelete", async function (doc: IPost | null) {
 // 🏷 Keyword → Category mapping
 //
 const CATEGORY_MAP: Record<string, string> = {
-  sports: "Sports", cricket: "Sports", football: "Sports", soccer: "Sports",
-  basketball: "Sports", tennis: "Sports", badminton: "Sports", hockey: "Sports",
-  olympics: "Sports", wrestling: "Sports", boxing: "Sports", kabaddi: "Sports",
-  baseball: "Sports", golf: "Sports", racing: "Sports", f1: "Sports", athletics: "Sports",
+  sports: "Sports",
+  cricket: "Sports",
+  football: "Sports",
+  soccer: "Sports",
+  basketball: "Sports",
+  tennis: "Sports",
+  badminton: "Sports",
+  hockey: "Sports",
+  olympics: "Sports",
+  wrestling: "Sports",
+  boxing: "Sports",
+  kabaddi: "Sports",
+  baseball: "Sports",
+  golf: "Sports",
+  racing: "Sports",
+  f1: "Sports",
+  athletics: "Sports",
 
-  tech: "Technology", technology: "Technology", javascript: "Technology", js: "Technology",
-  typescript: "Technology", python: "Technology", java: "Technology", cpp: "Technology",
-  ai: "Technology", artificialintelligence: "Technology", machinelearning: "Technology",
-  ml: "Technology", deeplearning: "Technology", blockchain: "Technology", crypto: "Technology",
-  cybersecurity: "Technology", programming: "Technology", coding: "Technology",
-  gadgets: "Technology", smartphone: "Technology", iphone: "Technology", android: "Technology",
-  webdev: "Technology", cloud: "Technology", devops: "Technology",
+  tech: "Technology",
+  technology: "Technology",
+  javascript: "Technology",
+  js: "Technology",
+  typescript: "Technology",
+  python: "Technology",
+  java: "Technology",
+  cpp: "Technology",
+  ai: "Technology",
+  artificialintelligence: "Technology",
+  machinelearning: "Technology",
+  ml: "Technology",
+  deeplearning: "Technology",
+  blockchain: "Technology",
+  crypto: "Technology",
+  cybersecurity: "Technology",
+  programming: "Technology",
+  coding: "Technology",
+  gadgets: "Technology",
+  smartphone: "Technology",
+  iphone: "Technology",
+  android: "Technology",
+  webdev: "Technology",
+  cloud: "Technology",
+  devops: "Technology",
 
-  politics: "News", election: "News", government: "News", world: "News",
-  international: "News", india: "News", usa: "News", uk: "News", china: "News",
-  economy: "News", finance: "News", business: "News", startup: "News",
-  war: "News", breaking: "News",
+  politics: "News",
+  election: "News",
+  government: "News",
+  world: "News",
+  international: "News",
+  india: "News",
+  usa: "News",
+  uk: "News",
+  china: "News",
+  economy: "News",
+  finance: "News",
+  business: "News",
+  startup: "News",
+  war: "News",
+  breaking: "News",
 
-  music: "Entertainment", song: "Entertainment", album: "Entertainment",
-  movie: "Entertainment", film: "Entertainment", cinema: "Entertainment",
-  bollywood: "Entertainment", hollywood: "Entertainment", tollywood: "Entertainment",
-  kollywood: "Entertainment", tv: "Entertainment", series: "Entertainment",
-  netflix: "Entertainment", primevideo: "Entertainment", hotstar: "Entertainment",
-  disney: "Entertainment", gaming: "Entertainment", games: "Entertainment",
-  anime: "Entertainment", cartoon: "Entertainment", meme: "Entertainment",
+  music: "Entertainment",
+  song: "Entertainment",
+  album: "Entertainment",
+  movie: "Entertainment",
+  film: "Entertainment",
+  cinema: "Entertainment",
+  bollywood: "Entertainment",
+  hollywood: "Entertainment",
+  tollywood: "Entertainment",
+  kollywood: "Entertainment",
+  tv: "Entertainment",
+  series: "Entertainment",
+  netflix: "Entertainment",
+  primevideo: "Entertainment",
+  hotstar: "Entertainment",
+  disney: "Entertainment",
+  gaming: "Entertainment",
+  games: "Entertainment",
+  anime: "Entertainment",
+  cartoon: "Entertainment",
+  meme: "Entertainment",
 
-  health: "Lifestyle", fitness: "Lifestyle", yoga: "Lifestyle", travel: "Lifestyle",
-  food: "Lifestyle", cooking: "Lifestyle", fashion: "Lifestyle",
-  education: "Education", study: "Education", exam: "Education",
-  science: "Science", space: "Science", astronomy: "Science",
-  environment: "Science", climate: "Science",
+  health: "Lifestyle",
+  fitness: "Lifestyle",
+  yoga: "Lifestyle",
+  travel: "Lifestyle",
+  food: "Lifestyle",
+  cooking: "Lifestyle",
+  fashion: "Lifestyle",
+  education: "Education",
+  study: "Education",
+  exam: "Education",
+  science: "Science",
+  space: "Science",
+  astronomy: "Science",
+  environment: "Science",
+  climate: "Science",
 };
 
 //
-// 🔄 Auto‑category assignment from title + tags
+// 🔄 Auto-category assignment from title + tags
 //
 postSchema.pre("save", function (next) {
   if (!this.category || this.category === "General") {

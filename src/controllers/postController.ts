@@ -41,6 +41,16 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         .json({ message: "Title, description, and content are required" });
     }
 
+    // ✅ Parse content safely
+    let parsedContent = content;
+    if (typeof content === "string") {
+      try {
+        parsedContent = JSON.parse(content);
+      } catch {
+        return res.status(400).json({ message: "Invalid content JSON" });
+      }
+    }
+
     const images: string[] = [];
     const files = (req as any).files as Express.Multer.File[] | undefined;
 
@@ -62,7 +72,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
     const post = await Post.create({
       title,
       description,
-      content,
+      content: parsedContent, // ✅ Always parsed JSON here
       category: category || "General",
       tags: Array.isArray(tags)
         ? tags
@@ -119,7 +129,20 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
 
     if (title) post.title = title;
     if (description) post.description = description;
-    if (content) post.content = content;
+
+    // ✅ Parse content safely
+    if (content) {
+      if (typeof content === "string") {
+        try {
+          post.content = JSON.parse(content);
+        } catch {
+          return res.status(400).json({ message: "Invalid content JSON" });
+        }
+      } else {
+        post.content = content;
+      }
+    }
+
     if (category) post.category = category;
     if (tags) {
       post.tags = Array.isArray(tags)

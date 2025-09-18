@@ -366,3 +366,25 @@ export const deleteProfile = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+export const connectTelegram = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // Unique token generate karo (userId + timestamp)
+    const uniqueToken = `${req.user._id}-${Date.now()}`;
+
+    // Telegram bot ka deep link
+    const authUrl = `https://t.me/gyaanmanthan_bot?start=${uniqueToken}`;
+
+    // Optional: token DB me save karo taaki verify kar sako jab user bot me start kare
+    // await User.findByIdAndUpdate(req.user._id, { telegramToken: uniqueToken });
+
+    res.json({ authUrl });
+  } catch (err) {
+    console.error('Telegram connect error:', err);
+    res.status(500).json({ message: 'Server error while connecting Telegram' });
+  }
+};

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { param, body } from 'express-validator';
 import { auth } from '../middleware/auth';
+import { connectTelegram } from '../controllers/userController'; // 👈 naya import
 import { upload } from '../middleware/upload';
 import {
   getMeWithFullProfile,
@@ -77,5 +78,12 @@ router.put(
  *          follows, comments (Post + PostMeta), replies
  */
 router.delete('/', auth, deleteProfile);
+
+/**
+ * @route   GET /users/connect-telegram
+ * @desc    Generate Telegram bot deep link for account linking
+ * @access  Private
+ */
+router.get('/connect-telegram', auth, connectTelegram);
 
 export default router;

@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { param, body } from 'express-validator';
 import { auth } from '../middleware/auth';
-import { connectTelegram } from '../controllers/userController'; // 👈 naya import
 import { upload } from '../middleware/upload';
 import {
+  connectTelegram,
   getMeWithFullProfile,
   getProfileWithFullProfile,
   updateProfile,
@@ -16,16 +16,13 @@ const router = Router();
  * @route   GET /users/me
  * @desc    Get current logged-in user's full profile
  * @access  Private
- * @returns Basic info + stats (posts, followers, following, likes, saves, comments, threads)
- *          + posts, postMetas, savedItems, likedItems, combinedTimeline
  */
 router.get('/me', auth, getMeWithFullProfile);
 
 /**
  * @route   GET /users/:id
  * @desc    Get any user's full profile by ID
- * @access  Private (auth required to see follow flags)
- * @param   id - MongoDB ObjectId of the user
+ * @access  Private
  */
 router.get(
   '/:id',
@@ -38,8 +35,6 @@ router.get(
  * @route   PUT /users
  * @desc    Update logged-in user's profile
  * @access  Private
- * @body    Optional fields: name, bio, phone, dob, gender, website, location
- * @upload  avatar (single image), banner (single image)
  */
 router.put(
   '/',
@@ -74,8 +69,6 @@ router.put(
  * @route   DELETE /users
  * @desc    Delete logged-in user's profile and all related data
  * @access  Private
- * @note    Cleans up: posts, postMetas, likes (Post + PostMeta), saves (Post + PostMeta),
- *          follows, comments (Post + PostMeta), replies
  */
 router.delete('/', auth, deleteProfile);
 

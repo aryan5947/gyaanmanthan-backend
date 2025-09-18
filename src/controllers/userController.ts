@@ -369,22 +369,39 @@ export const deleteProfile = async (req: Request, res: Response) => {
 
 export const connectTelegram = async (req: Request, res: Response) => {
   try {
+    console.log("🔹 [connectTelegram] Route hit");
+    console.log("Auth header:", req.headers.authorization);
+    console.log("req.user:", req.user);
+
+    // Auth check
     if (!req.user?._id) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ 
+        success: false,
+        message: "Unauthorized: Missing or invalid token" 
+      });
     }
 
-    // Unique token generate karo (userId + timestamp)
+    // Unique token generate (userId + timestamp)
     const uniqueToken = `${req.user._id}-${Date.now()}`;
 
-    // Telegram bot ka deep link
+    // Telegram bot deep link
     const authUrl = `https://t.me/gyaanmanthan_bot?start=${uniqueToken}`;
 
-    // Optional: token DB me save karo taaki verify kar sako jab user bot me start kare
+    // Optional: token DB में save करो ताकि bot में verify कर सको
     // await User.findByIdAndUpdate(req.user._id, { telegramToken: uniqueToken });
 
-    res.json({ authUrl });
+    console.log(`✅ Generated Telegram authUrl for user ${req.user.username}: ${authUrl}`);
+
+    return res.json({
+      success: true,
+      authUrl
+    });
+
   } catch (err) {
-    console.error('Telegram connect error:', err);
-    res.status(500).json({ message: 'Server error while connecting Telegram' });
+    console.error("❌ Telegram connect error:", err);
+    return res.status(500).json({ 
+      success: false,
+      message: "Server error while connecting Telegram" 
+    });
   }
 };

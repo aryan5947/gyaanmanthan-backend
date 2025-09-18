@@ -5,6 +5,8 @@ import { User } from "../models/User";
 import { Follow } from "../models/Follow";
 import { Post } from "../models/Post";
 import { PostMeta } from "../models/PostMeta";
+import crypto from "crypto";
+import { TelegramLinkToken } from "../models/TelegramLinkToken";
 import { Like as LikePostMeta } from "../models/LikePostMeta";
 import { PostLike } from "../models/PostLike";
 import { SavedPostMeta } from "../models/SavedPostMeta";
@@ -367,30 +369,37 @@ export const deleteProfile = async (req: Request, res: Response) => {
   }
 };
 
+
 export const connectTelegram = async (req: Request, res: Response) => {
   try {
     console.log("🔹 [connectTelegram] Route hit");
-    console.log("Auth header:", req.headers.authorization);
     console.log("req.user:", req.user);
 
-    // Auth check
     if (!req.user?._id) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: "Unauthorized: Missing or invalid token" 
+        message: "Unauthorized: Missing or invalid token"
       });
     }
 
-    // Unique token generate (userId + timestamp)
-    const uniqueToken = `${req.user._id}-${Date.now()}`;
+    // 1️⃣ Unique JTI बनाओ (secure random string)
+    const jti = crypto.randomBytes(16).toString("hex");
 
-    // Telegram bot deep link
-    const authUrl = `https://t.me/gyaanmanthan_bot?start=${uniqueToken}`;
+    // 2️⃣ Expiry set करो (उदाहरण: 10 मिनट बाद expire)
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Optional: token DB में save करो ताकि bot में verify कर सको
-    // await User.findByIdAndUpdate(req.user._id, { telegramToken: uniqueToken });
+    // 3️⃣ Token DB में save करो
+    await TelegramLinkToken.create({
+      userId: req.user._id,
+      jti,
+      expiresAt,
+      used: false
+    });
 
-    console.log(`✅ Generated Telegram authUrl for user ${req.user.username}: ${authUrl}`);
+    // 4️⃣ Telegram deep link बनाओ
+    const authUrl = `https://t.me/gyaanmanthan_bot?start=${jti}`;
+
+    console.log(`✅ Generated Telegram authUrl for ${req.user.username}: ${authUrl}`);
 
     return res.json({
       success: true,
@@ -399,9 +408,9 @@ export const connectTelegram = async (req: Request, res: Response) => {
 
   } catch (err) {
     console.error("❌ Telegram connect error:", err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Server error while connecting Telegram" 
+      message: "Server error while connecting Telegram"
     });
   }
 };

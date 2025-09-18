@@ -1,20 +1,12 @@
-// middleware/auth.ts
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload as DefaultJwtPayload } from "jsonwebtoken";
 import { env } from "../config/env";
 import { User } from "../models/User";
 
-/**
- * JwtPayload — extends default JWT payload to include our user id
- */
 export interface JwtPayload extends DefaultJwtPayload {
   id: string;
 }
 
-/**
- * Global augmentation for Express Request
- * Ensures req.user is strongly typed across the app
- */
 declare module "express-serve-static-core" {
   interface Request {
     user?: {
@@ -24,7 +16,7 @@ declare module "express-serve-static-core" {
       username: string;
       email: string;
       avatarUrl?: string;
-      bannerUrl?: string; // ✅ added banner
+      bannerUrl?: string;
       plan: string;
       walletBalance: number;
       role: "user" | "admin" | "moderator" | "banned";
@@ -32,27 +24,27 @@ declare module "express-serve-static-core" {
   }
 }
 
-/**
- * auth — JWT authentication middleware
- * - Verifies token
- * - Loads user from DB
- * - Attaches safe user object to req.user
- */
 export async function auth(req: Request, res: Response, next: NextFunction) {
   try {
+    console.log("🔹 [AUTH] Incoming request:", req.method, req.originalUrl);
+    console.log("🔹 [AUTH] Authorization header:", req.headers.authorization);
+
     const authHeader = req.headers.authorization ?? "";
     const token = authHeader.startsWith("Bearer ")
       ? authHeader.slice(7)
       : null;
 
     if (!token) {
+      console.warn("❌ [AUTH] No token provided");
       return res.status(401).json({ message: "Unauthorized: No token provided" });
     }
 
     let decoded: JwtPayload;
     try {
       decoded = jwt.verify(token, env.jwtSecret) as JwtPayload;
+      console.log("✅ [AUTH] Decoded JWT payload:", decoded);
     } catch (err: any) {
+      console.error("❌ [AUTH] JWT verification failed:", err.name, err.message);
       if (err.name === "TokenExpiredError") {
         return res.status(401).json({ message: "Token expired" });
       }
@@ -60,10 +52,11 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
     }
 
     const user = await User.findById(decoded.id)
-      .select("name username email avatarUrl bannerUrl plan walletBalance role") // ✅ only safe fields
+      .select("name username email avatarUrl bannerUrl plan walletBalance role")
       .lean();
 
     if (!user) {
+      console.warn("❌ [AUTH] User not found for ID:", decoded.id);
       return res.status(401).json({ message: "Invalid token: User not found" });
     }
 
@@ -74,15 +67,16 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
       username: user.username,
       email: user.email,
       avatarUrl: user.avatarUrl,
-      bannerUrl: user.bannerUrl, // ✅ now included in req.user
+      bannerUrl: user.bannerUrl,
       plan: user.plan,
       walletBalance: user.walletBalance,
       role: user.role,
     };
 
+    console.log("✅ [AUTH] Authenticated user:", req.user.username, req.user.id);
     next();
   } catch (err) {
-    console.error("Auth middleware error:", err);
+    console.error("❌ [AUTH] Middleware error:", err);
     return res.status(500).json({ message: "Server error during authentication" });
   }
 }

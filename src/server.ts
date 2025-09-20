@@ -23,6 +23,7 @@ import postMetaRoutes from './routes/postMeta.routes';
 import postReportRoutes from "./routes/postReportRoutes";
 import postMetaReportRoutes from "./routes/postMetaReportRoutes";
 import adRoutes from './routes/adRoutes';
+import mentionRoutes from "./routes/mentionRoutes.js"; 
 import commentRoutes from './routes/commentRoutes';
 import postMetaCommentRoutes from './routes/postMetaComment.routes';
 import affiliateRoutes from './routes/affiliateRoutes';
@@ -109,6 +110,7 @@ app.use('/api/postMeta-comments', postMetaCommentRoutes);
 // Fully protected routes
 app.use('/api/user', auth, userRoutes);
 app.use('/api/user', auth, followRoutes);
+app.use("/api/mentions", mentionRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/postreports", postReportRoutes);
 app.use("/api/postmetareports", postMetaReportRoutes);

@@ -1,4 +1,4 @@
-import { Notification } from '../models/Notification';
+import { Notification } from '../models/Notification.js'; // ✅ .js extension for Node16+
 import mongoose from 'mongoose';
 
 interface NotificationPayload {
@@ -11,6 +11,7 @@ interface NotificationPayload {
   relatedUser?: mongoose.Types.ObjectId;
   relatedPost?: mongoose.Types.ObjectId;
   relatedPostMeta?: mongoose.Types.ObjectId;
+  relatedComment?: mongoose.Types.ObjectId; // ✅ added for comment mentions
 }
 
 export const createNotification = async ({
@@ -22,7 +23,8 @@ export const createNotification = async ({
   link,
   relatedUser,
   relatedPost,
-  relatedPostMeta
+  relatedPostMeta,
+  relatedComment
 }: NotificationPayload): Promise<void> => {
   await Notification.create({
     userId,
@@ -33,6 +35,7 @@ export const createNotification = async ({
     link: link || null,
     relatedUser: relatedUser || null,
     relatedPost: relatedPost || null,
-    relatedPostMeta: relatedPostMeta || null
+    relatedPostMeta: relatedPostMeta || null,
+    relatedComment: relatedComment || null // ✅ now supported
   });
 };

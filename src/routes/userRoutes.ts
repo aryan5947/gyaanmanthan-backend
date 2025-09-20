@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { param, body } from 'express-validator';
 import { auth } from '../middleware/auth';
 import { connectTelegramTest } from "../controllers/connectTelegramTest";
@@ -10,21 +10,78 @@ import {
   deleteProfile
 } from '../controllers/userController';
 
+// 🆕 Models for summary
+import { User } from "../models/User";
+import { Follow } from "../models/Follow";
+import { PostLike } from "../models/PostLike";
+import { Like } from "../models/LikePostMeta";
+import { SavedPost } from "../models/SavedPost";
+import { SavedPostMeta } from "../models/SavedPostMeta";
+
 const router = Router();
+
+/**
+ * Small middleware to ensure req.user is defined
+ */
+function requireUser(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+}
 
 /**
  * @route   GET /users/me
  * @desc    Get current logged-in user's full profile
  * @access  Private
  */
-router.get('/me', auth, getMeWithFullProfile);
+router.get('/me', auth, requireUser, getMeWithFullProfile);
+
+/**
+ * @route   GET /users/summary
+ * @desc    Get current user's profile + likes + saves + following in one payload
+ * @access  Private
+ */
+router.get('/summary', auth, requireUser, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id; // ✅ safe after requireUser
+
+    const [me, followers, following, postLikes, postMetaLikes, savedPosts, savedPostMetas] =
+      await Promise.all([
+        User.findById(userId).select("-passwordHash"),
+        Follow.find({ following: userId }).select("follower createdAt"),
+        Follow.find({ follower: userId }).select("following createdAt"),
+        PostLike.find({ userId }).select("postId createdAt"),
+        Like.find({ userId }).select("postMetaId createdAt"),
+        SavedPost.find({ userId }).select("postId createdAt"),
+        SavedPostMeta.find({ userId }).select("postMetaId createdAt"),
+      ]);
+
+    res.json({
+      me,
+      followers,
+      following,
+      likes: {
+        posts: postLikes,
+        postMeta: postMetaLikes,
+      },
+      saves: {
+        posts: savedPosts,
+        postMeta: savedPostMetas,
+      },
+    });
+  } catch (err) {
+    console.error("Summary error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 /**
  * @route   GET /users/connect-telegram-test
  * @desc    Generate Telegram bot deep link for account linking (test)
  * @access  Private
  */
-router.get("/connect-telegram-test", auth, connectTelegramTest);
+router.get("/connect-telegram-test", auth, requireUser, connectTelegramTest);
 
 /**
  * @route   GET /users/:id
@@ -34,6 +91,7 @@ router.get("/connect-telegram-test", auth, connectTelegramTest);
 router.get(
   '/:id',
   auth,
+  requireUser,
   [param('id', 'Invalid user ID').isMongoId()],
   getProfileWithFullProfile
 );
@@ -46,6 +104,7 @@ router.get(
 router.put(
   '/',
   auth,
+  requireUser,
   upload.fields([
     { name: 'avatar', maxCount: 1 },
     { name: 'banner', maxCount: 1 }
@@ -77,6 +136,6 @@ router.put(
  * @desc    Delete logged-in user's profile and all related data
  * @access  Private
  */
-router.delete('/', auth, deleteProfile);
+router.delete('/', auth, requireUser, deleteProfile);
 
 export default router;

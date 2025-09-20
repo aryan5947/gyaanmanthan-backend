@@ -39,7 +39,7 @@ export async function createMentions({
 
     // 🔔 Send notification with ObjectId cast
     await createNotification({
-      userId: user._id,
+      userId: user._id as Types.ObjectId,
       type: "mention",
       message: `You were mentioned in a ${
         postId ? "post" : commentId ? "comment" : "postMeta"

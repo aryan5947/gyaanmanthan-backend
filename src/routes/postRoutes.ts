@@ -79,11 +79,13 @@ router.post("/:id/view", auth, async (req, res, next) => {
     const viewerIp = req.ip;
 
     // Author ke view ko skip karna
-    const post = await Post.findById(id).select("user stats.views");
-    if (!post) return res.status(404).json({ ok: false, message: "Post not found" });
+    const post = await Post.findById(id).select("authorId stats.views");
+    if (!post) {
+      return res.status(404).json({ ok: false, message: "Post not found" });
+    }
 
-    if (viewerId && post.user.toString() === viewerId.toString()) {
-      return res.json({ ok: true, views: post.stats.views }); // apna view count nahi hoga
+    if (viewerId && post.authorId.toString() === viewerId.toString()) {
+      return res.json({ ok: true, views: post.stats.views }); // ✅ apna view count nahi hoga
     }
 
     const updated = await Post.findByIdAndUpdate(

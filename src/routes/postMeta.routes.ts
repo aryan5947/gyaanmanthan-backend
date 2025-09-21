@@ -71,6 +71,27 @@ router.post("/:id/save", auth, async (req, res, next) => {
 });
 router.delete("/:id/save", auth, unsavePostMeta);
 
+// VIEW
+router.post("/:id/view", auth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const viewerId = req.user?._id; // JWT middleware se aata hai
+    const viewerIp = req.ip;
+
+    const updated = await PostMeta.incrementView(id, viewerId, viewerIp);
+
+    if (!updated) {
+      return res.status(404).json({ ok: false, message: "Post not found" });
+    }
+
+    return res.json({ ok: true, views: updated.stats.views });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
 // REPORT (moved to controller)
 router.post("/:postMetaId/report", auth, reportPostMeta);
 

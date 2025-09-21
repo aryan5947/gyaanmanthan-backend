@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { PostMeta } from "../models/PostMeta";
 import { PostMetaComment } from '../models/postMetaComment';
 import { Types } from "mongoose";
 
@@ -29,6 +30,11 @@ export const addMetaComment = async (req: Request, res: Response) => {
       likes: 0,
       likedBy: [],
       replies: [],
+    });
+
+    // ✅ increment commentCount on parent PostMeta
+    await PostMeta.findByIdAndUpdate(postMetaId, {
+      $inc: { commentCount: 1 },
     });
 
     return res.status(201).json(comment);
@@ -65,6 +71,12 @@ export const addMetaReply = async (req: Request, res: Response) => {
     });
 
     await comment.save();
+
+    // ✅ agar replies ko bhi count me lena hai
+    await PostMeta.findByIdAndUpdate(comment.postMetaId, {
+      $inc: { commentCount: 1 },
+    });
+
     return res.status(201).json(comment);
   } catch (err: any) {
     console.error("Error adding meta reply:", err);
@@ -201,7 +213,14 @@ export const deleteMetaComment = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Forbidden" });
     }
 
+    // ✅ delete comment
     await comment.deleteOne();
+
+    // ✅ decrement commentCount on parent PostMeta
+    await PostMeta.findByIdAndUpdate(comment.postMetaId, {
+      $inc: { commentCount: -1 },
+    });
+
     return res.json({ message: "Meta comment deleted" });
   } catch (err: any) {
     console.error("Error deleting meta comment:", err);
@@ -265,6 +284,11 @@ export const deleteMetaReply = async (req: Request, res: Response) => {
 
     reply.deleteOne();
     await comment.save();
+
+    // ✅ decrement commentCount on parent PostMeta
+    await PostMeta.findByIdAndUpdate(comment.postMetaId, {
+      $inc: { commentCount: -1 },
+    });
 
     return res.json({ message: "Meta reply deleted" });
   } catch (err: any) {

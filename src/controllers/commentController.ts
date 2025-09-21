@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Comment } from "../models/Comment";
+import { Post } from "../models/Post"; 
 import { Types } from "mongoose";
 
 // ✅ Admin check
@@ -15,6 +16,7 @@ const isPostOwner = (reqUserId: any, postAuthorId: any) =>
 // ✅ Owner check
 const isOwner = (reqUserId: any, resourceAuthorId: any) =>
   reqUserId?.toString() === resourceAuthorId?.toString();
+// ✅ ensure import at top
 
 // ---------------- ADD COMMENT ----------------
 export const addComment = async (req: Request, res: Response) => {
@@ -41,6 +43,9 @@ export const addComment = async (req: Request, res: Response) => {
       replies: [],
       createdAt: new Date(),
     });
+
+    // ✅ increment commentCount on parent Post
+    await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
 
     return res.status(201).json(comment);
   } catch (err: any) {
@@ -76,6 +81,10 @@ export const addReply = async (req: Request, res: Response) => {
     });
 
     await comment.save();
+
+    // ✅ agar replies ko bhi count me lena hai
+    await Post.findByIdAndUpdate(comment.postId, { $inc: { commentCount: 1 } });
+
     return res.status(201).json(comment);
   } catch (err: any) {
     console.error("Error adding reply:", err);
@@ -199,6 +208,7 @@ export const deleteComment = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
+    // ✅ Owner OR Admin OR Post Owner can delete
     if (
       !isOwner(req.user._id, comment.authorId) &&
       !isAdmin(req.user.role) &&
@@ -207,7 +217,14 @@ export const deleteComment = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Forbidden" });
     }
 
+    // ✅ delete comment
     await comment.deleteOne();
+
+    // ✅ decrement commentCount on parent Post
+    await Post.findByIdAndUpdate(comment.postId, {
+      $inc: { commentCount: -1 },
+    });
+
     return res.json({ message: "Comment deleted" });
   } catch (err: any) {
     console.error("Error deleting comment:", err);
@@ -262,6 +279,7 @@ export const deleteReply = async (req: Request, res: Response) => {
     const reply = (comment.replies as Types.DocumentArray<any>).id(replyId);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
 
+    // ✅ Owner OR Admin OR Post Owner can delete
     if (
       !isOwner(req.user._id, reply.authorId) &&
       !isAdmin(req.user.role) &&
@@ -273,12 +291,18 @@ export const deleteReply = async (req: Request, res: Response) => {
     reply.deleteOne();
     await comment.save();
 
+    // ✅ decrement commentCount on parent Post
+    await Post.findByIdAndUpdate(comment.postId, {
+      $inc: { commentCount: -1 },
+    });
+
     return res.json({ message: "Reply deleted" });
   } catch (err: any) {
     console.error("Error deleting reply:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // ---------------- GET COMMENTS FOR POST ----------------
 export const getCommentsByPost = async (req: Request, res: Response) => {

@@ -71,6 +71,34 @@ router.post("/:id/save", auth, async (req, res, next) => {
 });
 router.delete("/:id/save", auth, unsavePost);
 
+// VIEW
+router.post("/:id/view", auth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const viewerId = req.user?._id;
+    const viewerIp = req.ip;
+
+    // Author ke view ko skip karna
+    const post = await Post.findById(id).select("user stats.views");
+    if (!post) return res.status(404).json({ ok: false, message: "Post not found" });
+
+    if (viewerId && post.user.toString() === viewerId.toString()) {
+      return res.json({ ok: true, views: post.stats.views }); // apna view count nahi hoga
+    }
+
+    const updated = await Post.findByIdAndUpdate(
+      id,
+      { $inc: { "stats.views": 1 } },
+      { new: true }
+    ).select("stats.views");
+
+    return res.json({ ok: true, views: updated?.stats.views });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
 // REPORT (moved to controller)
 router.post("/:postId/report", auth, reportPost);
 

@@ -1,17 +1,15 @@
-// src/utils/telegramBot.ts
 import { env } from '../config/env.js';
 import { TelegramButton } from '../types/telegram.js';
 import { logger } from './logger.js';
 import { PostMeta } from '../models/PostMeta.js';
 import { Post } from '../models/Post.js';
 import { User } from '../models/User.js';
-import { AuditLog } from '../models/AuditLog.js'; // ✅ Audit log import
+import { AuditLog } from '../models/AuditLog.js';
 import mongoose from 'mongoose';
 
 const API_URL = `https://api.telegram.org/bot${env.telegram.botToken}`;
 
 // -------------------- Core send helpers --------------------
-
 export async function sendTelegramMessage(text: string, chatId?: string | number) {
   const chat_id = chatId ?? env.telegram.chatId;
   const res = await fetch(`${API_URL}/sendMessage`, {
@@ -64,36 +62,36 @@ export async function setWebhook(url: string) {
 }
 
 // -------------------- sendTelegramAlert --------------------
-
 export async function sendTelegramAlert(title: string, details: string, chatId?: string | number) {
   const chat_id = chatId ?? env.telegram.chatId;
   const text = `📢 *${title}*\n${details}\n🕒 ${new Date().toLocaleString()}`;
-
   const res = await fetch(`${API_URL}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id, text, parse_mode: 'Markdown' })
   });
-
   if (!res.ok) {
     logger.error('Telegram sendMessage (alert) failed:', res.status, await res.text());
   }
 }
 
-
 // -------------------- Inline keyboards --------------------
-
 function buildUserActionsButtons(user: any): TelegramButton[][] {
   return [
     [
+      // Ban/Unban
       { text: user.role === 'banned' ? '♻️ Unban' : '🚫 Ban', callback_data: `${user.role === 'banned' ? 'unban' : 'ban'}_${user._id}` },
+      // Golden Tick toggle
       { text: user.isGoldenVerified ? '❌ Remove Tick' : '🏅 Give Tick', callback_data: `toggle_golden_${user._id}` }
     ],
     [
+      // Auto Golden Tick
       { text: '🏅 Auto Tick', callback_data: `auto_golden_${user._id}` },
+      // Wallet Add
       { text: '💰 +₹100', callback_data: `wallet_add_${user._id}_100` }
     ],
     [
+      // Role change
       { text: '🎭 Make Admin', callback_data: `role_admin_${user._id}` },
       { text: '🎭 Make User', callback_data: `role_user_${user._id}` }
     ],
@@ -107,7 +105,6 @@ function buildUserActionsButtons(user: any): TelegramButton[][] {
     ]
   ];
 }
-
 function buildPostActionsButtons(postId: string, ownerId?: string): TelegramButton[][] {
   return [
     [
@@ -126,7 +123,6 @@ function buildPostActionsButtons(postId: string, ownerId?: string): TelegramButt
 }
 
 // -------------------- Helper for audit logging --------------------
-
 async function logAction(action: string, description: string, meta?: any, target?: any, targetModel?: string) {
   try {
     await AuditLog.create({
@@ -142,8 +138,7 @@ async function logAction(action: string, description: string, meta?: any, target
   }
 }
 
-// -------------------- Update handler --------------------
-
+// -------------------- Update handler (MAIN FUTURE-PROOF LOGIC) --------------------
 export async function handleTelegramUpdate(update: any) {
   try {
     if (!update.callback_query) return;
@@ -153,7 +148,7 @@ export async function handleTelegramUpdate(update: any) {
     const chatId = update.callback_query.message.chat.id;
     const messageId = update.callback_query.message.message_id;
 
-    // ---------- Multi-action menu: user ----------
+    // ---------- User Actions Menu ----------
     if (data.startsWith('actions_')) {
       const userId = data.replace('actions_', '');
       try {
@@ -174,8 +169,8 @@ export async function handleTelegramUpdate(update: any) {
       return;
     }
 
-    // ---------- Post owner fallback ----------
-     if (data.startsWith('post_owner_')) {
+    // ---------- Post Owner Actions ----------
+    if (data.startsWith('post_owner_')) {
       const postId = data.replace('post_owner_', '');
       try {
         const post = await Post.findById(postId).select('user').lean() as any;
@@ -196,7 +191,7 @@ export async function handleTelegramUpdate(update: any) {
       return;
     }
 
-    // ---------- Resolve Meta ----------
+    // ---------- Resolve Meta Report ----------
     if (data.startsWith('resolveMeta_')) {
       const postId = data.replace('resolveMeta_', '');
       try {
@@ -405,7 +400,6 @@ export async function handleTelegramUpdate(update: any) {
 }
 
 // -------------------- Helper --------------------
-
 async function editTelegramMessage(chatId: number, messageId: number, text: string) {
   await fetch(`${API_URL}/editMessageText`, {
     method: 'POST',
@@ -415,8 +409,6 @@ async function editTelegramMessage(chatId: number, messageId: number, text: stri
 }
 
 // -------------------- DEMO helpers for testing --------------------
-
-// Send user actions menu directly by userId
 export async function sendUserActionsMenu(userId: string, chatId?: string | number) {
   try {
     const user = await User.findById(userId).lean() as any;
@@ -434,8 +426,6 @@ export async function sendUserActionsMenu(userId: string, chatId?: string | numb
     logger.error('sendUserActionsMenu failed:', err);
   }
 }
-
-// Send post actions menu directly by postId
 export async function sendPostActionsMenu(postId: string, chatId?: string | number) {
   try {
     const post = await Post.findById(postId).lean() as any;

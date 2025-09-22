@@ -1,7 +1,9 @@
 import { Schema, model, Document, Types, Model } from "mongoose";
 import { User } from "./User";
 
-// 📄 Document interface
+/**
+ * IPost — TypeScript interface for Post document
+ */
 export interface IPost extends Document {
   title: string;
   description: string;
@@ -25,7 +27,9 @@ export interface IPost extends Document {
   updatedAt: Date;
 }
 
-// 🏗 Model statics interface
+/**
+ * IPostModel — statics for Post model
+ */
 export interface IPostModel extends Model<IPost> {
   incrementView(
     postId: Types.ObjectId | string,
@@ -44,20 +48,17 @@ const postSchema = new Schema<IPost>(
     tags: [{ type: String, index: true }],
     images: [{ type: String }],
 
-    // ✅ Author Info
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     authorName: { type: String, required: true, trim: true },
     authorUsername: { type: String, required: true, trim: true, lowercase: true, index: true },
     authorAvatar: { type: String },
     isGoldenVerified: { type: Boolean, default: false, index: true },
 
-    // ✅ Stats
     stats: {
       views: { type: Number, default: 0 },
       likes: { type: Number, default: 0 },
     },
 
-    // ✅ Moderation + Scan Fields
     status: {
       type: String,
       enum: ["active", "restricted", "blocked", "deleted"],
@@ -75,9 +76,7 @@ const postSchema = new Schema<IPost>(
   { timestamps: true }
 );
 
-//
-// 📊 Auto-increment/decrement User.postsCount
-//
+// postsCount auto-increment/decrement
 postSchema.post("save", async function (doc) {
   try {
     await User.findByIdAndUpdate(doc.authorId, { $inc: { postsCount: 1 } });
@@ -85,7 +84,6 @@ postSchema.post("save", async function (doc) {
     console.error("Error incrementing postsCount:", err);
   }
 });
-
 postSchema.post("findOneAndDelete", async function (doc: IPost | null) {
   if (!doc) return;
   try {
@@ -95,15 +93,12 @@ postSchema.post("findOneAndDelete", async function (doc: IPost | null) {
   }
 });
 
-//
-// 🏷 Keyword → Category mapping
-//
+// Same CATEGORY_MAP and pre-save logic as PostMeta
 const CATEGORY_MAP: Record<string, string> = {
   sports: "Sports", cricket: "Sports", football: "Sports", soccer: "Sports",
   basketball: "Sports", tennis: "Sports", badminton: "Sports", hockey: "Sports",
   olympics: "Sports", wrestling: "Sports", boxing: "Sports", kabaddi: "Sports",
   baseball: "Sports", golf: "Sports", racing: "Sports", f1: "Sports", athletics: "Sports",
-
   tech: "Technology", technology: "Technology", javascript: "Technology", js: "Technology",
   typescript: "Technology", python: "Technology", java: "Technology", cpp: "Technology",
   ai: "Technology", artificialintelligence: "Technology", machinelearning: "Technology",
@@ -111,12 +106,10 @@ const CATEGORY_MAP: Record<string, string> = {
   cybersecurity: "Technology", programming: "Technology", coding: "Technology",
   gadgets: "Technology", smartphone: "Technology", iphone: "Technology", android: "Technology",
   webdev: "Technology", cloud: "Technology", devops: "Technology",
-
   politics: "News", election: "News", government: "News", world: "News",
   international: "News", india: "News", usa: "News", uk: "News", china: "News",
   economy: "News", finance: "News", business: "News", startup: "News",
   war: "News", breaking: "News",
-
   music: "Entertainment", song: "Entertainment", album: "Entertainment",
   movie: "Entertainment", film: "Entertainment", cinema: "Entertainment",
   bollywood: "Entertainment", hollywood: "Entertainment", tollywood: "Entertainment",
@@ -124,7 +117,6 @@ const CATEGORY_MAP: Record<string, string> = {
   netflix: "Entertainment", primevideo: "Entertainment", hotstar: "Entertainment",
   disney: "Entertainment", gaming: "Entertainment", games: "Entertainment",
   anime: "Entertainment", cartoon: "Entertainment", meme: "Entertainment",
-
   health: "Lifestyle", fitness: "Lifestyle", yoga: "Lifestyle", travel: "Lifestyle",
   food: "Lifestyle", cooking: "Lifestyle", fashion: "Lifestyle",
   education: "Education", study: "Education", exam: "Education",
@@ -132,23 +124,18 @@ const CATEGORY_MAP: Record<string, string> = {
   environment: "Science", climate: "Science",
 };
 
-//
-// 🔄 Auto-category assignment with scoring
-//
 postSchema.pre("save", function (next) {
   if (!this.category || this.category === "General") {
     const text = (this.title + " " + (this.tags || []).join(" ")).toLowerCase();
     const words = text.split(/\W+/).filter(Boolean);
 
     const scores: Record<string, number> = {};
-
     for (const keyword in CATEGORY_MAP) {
       if (words.includes(keyword.toLowerCase())) {
         const cat = CATEGORY_MAP[keyword];
         scores[cat] = (scores[cat] || 0) + 1;
       }
     }
-
     if (Object.keys(scores).length > 0) {
       const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
       this.category = sorted[0][0];
@@ -159,9 +146,7 @@ postSchema.pre("save", function (next) {
   next();
 });
 
-//
-// 👁 Screen View Increment Logic
-//
+// Static: increment views
 postSchema.statics.incrementView = async function (
   postId: Types.ObjectId | string,
   viewerId?: Types.ObjectId | string,

@@ -10,79 +10,61 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   avatarUrl?: string;
-  bannerUrl?: string; // ✅ optional banner image
+  bannerUrl?: string;
   bio?: string;
   plan: 'free' | 'partner';
   walletBalance: number;
-  role: 'user' | 'admin' | 'moderator' | 'banned'; // ✅ RBAC ready
+  role: 'user' | 'admin' | 'moderator' | 'banned';
 
-  // 📊 Social graph counters
   followersCount: number;
   followingCount: number;
   postsCount: number;
   postMetaCount: number;
 
-  // 🗨️ Comment counters
   commentsCount: number;         
   threadsCount: number;          
   postMetaCommentsCount: number; 
   postMetaThreadsCount: number;  
 
-  // 🏅 Golden tick status
   isGoldenVerified: boolean;
 
-  // 📩 Telegram integration
   telegramChatId?: number | null;
   telegramUsername?: string | null;
   telegramLinkedAt?: Date | null;
+
+  sessionVersion?: number; // For force logout management
+  lastAdminActionAt?: Date;
 
   createdAt: Date;
   updatedAt: Date;
 }
 
-/**
- * userSchema — Mongoose schema definition
- * Backward-compatible, future-proof, and optimized for scale
- */
 const userSchema = new Schema<IUser>(
   {
-    // 🧾 Basic profile
     name: { type: String, required: true, trim: true },
     username: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
     passwordHash: { type: String, required: true },
-
-    // 🖼 Media
     avatarUrl: { type: String },
     bannerUrl: { type: String },
     bio: { type: String, trim: true },
-
-    // 💳 Account & plan
     plan: { type: String, enum: ['free', 'partner'], default: 'free' },
     walletBalance: { type: Number, default: 0 },
-
-    // 🛡 RBAC role
     role: { type: String, enum: ['user', 'admin', 'moderator', 'banned'], default: 'user', index: true },
-
-    // 📊 Social graph counters
     followersCount: { type: Number, default: 0 },
     followingCount: { type: Number, default: 0 },
     postsCount: { type: Number, default: 0 },
     postMetaCount: { type: Number, default: 0 },
-
-    // 🗨️ Comment counters
     commentsCount: { type: Number, default: 0 },         
     threadsCount: { type: Number, default: 0 },          
     postMetaCommentsCount: { type: Number, default: 0 }, 
     postMetaThreadsCount: { type: Number, default: 0 },  
-
-    // 🏅 Golden tick status
     isGoldenVerified: { type: Boolean, default: false },
-
-    // 📩 Telegram integration
     telegramChatId: { type: Number, default: null, index: true },
     telegramUsername: { type: String, default: null },
-    telegramLinkedAt: { type: Date, default: null }
+    telegramLinkedAt: { type: Date, default: null },
+    sessionVersion: { type: Number, default: 1 },
+    lastAdminActionAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

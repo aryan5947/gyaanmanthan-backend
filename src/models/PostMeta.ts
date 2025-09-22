@@ -1,6 +1,8 @@
 import { Schema, model, Document, Types, Model } from "mongoose";
 
-// 📄 Document interface
+/**
+ * IPostMeta — TypeScript interface for PostMeta document
+ */
 export interface IPostMeta extends Document {
   title: string;
   description: string;
@@ -28,7 +30,9 @@ export interface IPostMeta extends Document {
   updatedAt: Date;
 }
 
-// 🏗 Model statics interface
+/**
+ * IPostMetaModel — statics for PostMeta model
+ */
 export interface IPostMetaModel extends Model<IPostMeta> {
   incrementView(
     postMetaId: Types.ObjectId | string,
@@ -40,10 +44,9 @@ export interface IPostMetaModel extends Model<IPostMeta> {
 const postMetaSchema = new Schema<IPostMeta>(
   {
     title: { type: String, required: true, trim: true },
-    description: { type: String, required: false, trim: true },
+    description: { type: String, trim: true },
     category: { type: String, default: "General", index: true },
     tags: [{ type: String, index: true }],
-
     files: [
       {
         url: { type: String, required: true },
@@ -52,18 +55,15 @@ const postMetaSchema = new Schema<IPostMeta>(
         size: { type: Number },
       },
     ],
-
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     authorName: { type: String, required: true, trim: true },
     authorUsername: { type: String, required: true, trim: true, lowercase: true, index: true },
     authorAvatar: { type: String },
     isGoldenVerified: { type: Boolean, default: false, index: true },
-
     stats: {
       views: { type: Number, default: 0 },
       likes: { type: Number, default: 0 },
     },
-
     status: {
       type: String,
       enum: ["active", "restricted", "blocked", "deleted"],
@@ -81,13 +81,12 @@ const postMetaSchema = new Schema<IPostMeta>(
   { timestamps: true }
 );
 
-// 🏷 Keyword → Category mapping
+// Keyword → Category mapping (same as your mapping)
 const CATEGORY_MAP: Record<string, string> = {
   sports: "Sports", cricket: "Sports", football: "Sports", soccer: "Sports",
   basketball: "Sports", tennis: "Sports", badminton: "Sports", hockey: "Sports",
   olympics: "Sports", wrestling: "Sports", boxing: "Sports", kabaddi: "Sports",
   baseball: "Sports", golf: "Sports", racing: "Sports", f1: "Sports", athletics: "Sports",
-
   tech: "Technology", technology: "Technology", javascript: "Technology", js: "Technology",
   typescript: "Technology", python: "Technology", java: "Technology", cpp: "Technology",
   ai: "Technology", artificialintelligence: "Technology", machinelearning: "Technology",
@@ -95,12 +94,10 @@ const CATEGORY_MAP: Record<string, string> = {
   cybersecurity: "Technology", programming: "Technology", coding: "Technology",
   gadgets: "Technology", smartphone: "Technology", iphone: "Technology", android: "Technology",
   webdev: "Technology", cloud: "Technology", devops: "Technology",
-
   politics: "News", election: "News", government: "News", world: "News",
   international: "News", india: "News", usa: "News", uk: "News", china: "News",
   economy: "News", finance: "News", business: "News", startup: "News",
   war: "News", breaking: "News",
-
   music: "Entertainment", song: "Entertainment", album: "Entertainment",
   movie: "Entertainment", film: "Entertainment", cinema: "Entertainment",
   bollywood: "Entertainment", hollywood: "Entertainment", tollywood: "Entertainment",
@@ -108,7 +105,6 @@ const CATEGORY_MAP: Record<string, string> = {
   netflix: "Entertainment", primevideo: "Entertainment", hotstar: "Entertainment",
   disney: "Entertainment", gaming: "Entertainment", games: "Entertainment",
   anime: "Entertainment", cartoon: "Entertainment", meme: "Entertainment",
-
   health: "Lifestyle", fitness: "Lifestyle", yoga: "Lifestyle", travel: "Lifestyle",
   food: "Lifestyle", cooking: "Lifestyle", fashion: "Lifestyle",
   education: "Education", study: "Education", exam: "Education",
@@ -116,25 +112,20 @@ const CATEGORY_MAP: Record<string, string> = {
   environment: "Science", climate: "Science",
 };
 
-// 🔄 Auto‑category assignment with scoring
+// Auto-category assignment
 postMetaSchema.pre("save", function (next) {
   if (!this.category || this.category === "General") {
-    const text = (this.title + " " + (this.tags || []).join(" "))
-      .toLowerCase();
-
+    const text = (this.title + " " + (this.tags || []).join(" ")).toLowerCase();
     const words = text.split(/\W+/).filter(Boolean);
 
     const scores: Record<string, number> = {};
-
     for (const keyword in CATEGORY_MAP) {
       if (words.includes(keyword.toLowerCase())) {
         const cat = CATEGORY_MAP[keyword];
         scores[cat] = (scores[cat] || 0) + 1;
       }
     }
-
     if (Object.keys(scores).length > 0) {
-      // pick category with highest score
       const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
       this.category = sorted[0][0];
     } else {
@@ -144,7 +135,7 @@ postMetaSchema.pre("save", function (next) {
   next();
 });
 
-// 👁 Static method for view increment
+// Static: increment views
 postMetaSchema.statics.incrementView = async function (
   postMetaId: Types.ObjectId | string,
   viewerId?: Types.ObjectId | string,

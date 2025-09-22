@@ -170,9 +170,13 @@ router.post("/telegram-webhook", async (req: Request, res: Response) => {
 
         case "/menu":
           if (!arg) {
-            await sendTelegramAlert("⚠️ Usage", "/menu <userId>");
-            break;
+              await sendTelegramAlert(
+               "⚠️ Usage",
+               "/menu <userId | @username>"
+            );
+             break;
           }
+
           await sendUserActionsMenu(arg, chatId);
           break;
 

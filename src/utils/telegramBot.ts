@@ -149,25 +149,47 @@ export async function handleTelegramUpdate(update: any) {
     const messageId = update.callback_query.message.message_id;
 
     // ---------- User Actions Menu ----------
-    if (data.startsWith('actions_')) {
-      const userId = data.replace('actions_', '');
-      try {
-        const user = await User.findById(userId).lean() as any;
-        if (!user) return await answerCallback(callbackId, '❌ User not found');
-        await sendTelegramAlertWithButtons(
-          `Actions for @${user.username}`,
-          `Choose an action below:`,
-          buildUserActionsButtons(user),
-          chatId
-        );
-        await logAction('ACTIONS_MENU', `Opened actions menu for user ${user.username}`, {}, userId, 'User');
-        await answerCallback(callbackId, '📋 Actions menu sent');
-      } catch (err) {
-        logger.error('Send actions menu failed:', err);
-        await answerCallback(callbackId, '❌ Failed to send actions menu');
-      }
-      return;
+   if (data.startsWith("actions_")) {
+    const arg = data.replace("actions_", ""); // could be ObjectId or @username
+   try {
+    let user: any = null;
+
+    if (arg.startsWith("@")) {
+      // username से lookup
+      const uname = arg.slice(1).toLowerCase();
+      user = await User.findOne({ username: uname }).lean();
+    } else {
+      // id से lookup
+      user = await User.findById(arg).lean();
     }
+
+    if (!user) {
+      return await answerCallback(callbackId, `❌ User not found for ${arg}`);
+    }
+
+    await sendTelegramAlertWithButtons(
+      `Actions for @${user.username}`,
+      `Choose an action below:`,
+      buildUserActionsButtons(user),
+      chatId
+    );
+
+    await logAction(
+      "ACTIONS_MENU",
+      `Opened actions menu for user ${user.username}`,
+      {},
+      user._id.toString(),
+      "User"
+    );
+
+     await answerCallback(callbackId, "📋 Actions menu sent");
+   } catch (err) {
+     logger.error("Send actions menu failed:", err);
+     await answerCallback(callbackId, "❌ Failed to send actions menu");
+   }
+   return;
+  }
+
 
     // ---------- Post Owner Actions ----------
     if (data.startsWith('post_owner_')) {

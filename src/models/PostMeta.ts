@@ -30,7 +30,11 @@ export interface IPostMeta extends Document {
 
 // 🏗 Model statics interface
 export interface IPostMetaModel extends Model<IPostMeta> {
-  incrementView(postMetaId: Types.ObjectId | string, viewerId?: Types.ObjectId | string, viewerIp?: string): Promise<IPostMeta | null>;
+  incrementView(
+    postMetaId: Types.ObjectId | string,
+    viewerId?: Types.ObjectId | string,
+    viewerIp?: string
+  ): Promise<IPostMeta | null>;
 }
 
 const postMetaSchema = new Schema<IPostMeta>(
@@ -64,15 +68,15 @@ const postMetaSchema = new Schema<IPostMeta>(
       type: String,
       enum: ["active", "restricted", "blocked", "deleted"],
       default: "active",
-      index: true
+      index: true,
     },
     restrictionReason: { type: String, default: null },
     copyrightScanStatus: {
       type: String,
       enum: ["pending", "passed", "failed", "disputed"],
       default: "pending",
-      index: true
-    }
+      index: true,
+    },
   },
   { timestamps: true }
 );
@@ -112,23 +116,30 @@ const CATEGORY_MAP: Record<string, string> = {
   environment: "Science", climate: "Science",
 };
 
-// 🔄 Auto‑category assignment from title + tags
+// 🔄 Auto‑category assignment with scoring
 postMetaSchema.pre("save", function (next) {
   if (!this.category || this.category === "General") {
-    const combinedText = (this.title + " " + (this.tags || []).join(" "))
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, ""); // remove spaces & special chars
+    const text = (this.title + " " + (this.tags || []).join(" "))
+      .toLowerCase();
 
-    let matchedCategory = "General";
+    const words = text.split(/\W+/).filter(Boolean);
+
+    const scores: Record<string, number> = {};
 
     for (const keyword in CATEGORY_MAP) {
-      if (combinedText.includes(keyword.toLowerCase())) {
-        matchedCategory = CATEGORY_MAP[keyword];
-        break;
+      if (words.includes(keyword.toLowerCase())) {
+        const cat = CATEGORY_MAP[keyword];
+        scores[cat] = (scores[cat] || 0) + 1;
       }
     }
 
-    this.category = matchedCategory;
+    if (Object.keys(scores).length > 0) {
+      // pick category with highest score
+      const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      this.category = sorted[0][0];
+    } else {
+      this.category = "General";
+    }
   }
   next();
 });

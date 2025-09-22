@@ -23,12 +23,16 @@ export const createPostMeta = async (req: Request, res: Response) => {
         headers: req.headers,
         user: req.user,
       });
-      return res.status(403).json({ message: "Access denied: not authenticated" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied: not authenticated" });
     }
 
     const { title, description, category, tags } = req.body;
     if (!title) {
-      return res.status(400).json({ message: "Title is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Title is required" });
     }
 
     const filesArr: { url: string; type: string; name?: string; size?: number }[] = [];
@@ -36,7 +40,11 @@ export const createPostMeta = async (req: Request, res: Response) => {
 
     if (files?.length) {
       for (const f of files) {
-        const up = await uploadBufferToCloudinary(f.buffer, f.mimetype, "post-meta");
+        const up = await uploadBufferToCloudinary(
+          f.buffer,
+          f.mimetype,
+          "post-meta"
+        );
         filesArr.push({
           url: up.url,
           type: f.mimetype.startsWith("image")
@@ -55,33 +63,42 @@ export const createPostMeta = async (req: Request, res: Response) => {
       "name username avatarUrl isGoldenVerified"
     );
     if (!userDoc) {
-      return res.status(404).json({ message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
+
+    // ✅ Normalize category + tags
+    const normalizedCategory = category ? category.trim().toLowerCase() : "General";
+    const normalizedTags = Array.isArray(tags)
+      ? tags.map((t: string) => t.trim().toLowerCase())
+      : typeof tags === "string"
+      ? tags.split(",").map((t: string) => t.trim().toLowerCase())
+      : [];
 
     const postMeta = await PostMeta.create({
       title,
       description,
-      category: category || "General",
-      tags: Array.isArray(tags)
-        ? tags
-        : typeof tags === "string"
-        ? tags.split(",").map((t: string) => t.trim())
-        : [],
+      category: normalizedCategory, // schema hook will auto-detect if "General"
+      tags: normalizedTags,
       files: filesArr,
       authorId: userDoc._id,
       authorName: userDoc.name,
-      authorUsername: userDoc.username,       // ✅ from DB
+      authorUsername: userDoc.username, // ✅ from DB
       authorAvatar: userDoc.avatarUrl || "",
-      isGoldenVerified: userDoc.isGoldenVerified // ✅ from DB
+      isGoldenVerified: userDoc.isGoldenVerified, // ✅ from DB
     });
 
-    return res.status(201).json({ postMeta });
+    return res.status(201).json({ success: true, data: postMeta });
   } catch (err: any) {
     console.error("Error creating post meta:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
   }
 };
-
 // ---------------- UPDATE POST META ----------------
 export const updatePostMeta = async (req: Request, res: Response) => {
   try {
@@ -92,7 +109,7 @@ export const updatePostMeta = async (req: Request, res: Response) => {
 
     const postMeta = await PostMeta.findById(postId);
     if (!postMeta) {
-      return res.status(404).json({ message: "PostMeta not found" });
+      return res.status(404).json({ success: false, message: "PostMeta not found" });
     }
 
     const userId = req.user?.id;
@@ -101,7 +118,7 @@ export const updatePostMeta = async (req: Request, res: Response) => {
     const isOwner = postMeta.authorId.toString() === userId;
 
     if (!isOwner && !isAdminOrMod) {
-      return res.status(403).json({ message: "Not authorized to edit this post" });
+      return res.status(403).json({ success: false, message: "Not authorized to edit this post" });
     }
 
     // ✅ Refresh author info from DB
@@ -117,12 +134,16 @@ export const updatePostMeta = async (req: Request, res: Response) => {
 
     if (title) postMeta.title = title;
     if (description) postMeta.description = description;
-    if (category) postMeta.category = category;
+
+    // ✅ Normalize category + tags
+    if (category) {
+      postMeta.category = category.trim().toLowerCase();
+    }
     if (tags) {
       postMeta.tags = Array.isArray(tags)
-        ? tags
+        ? tags.map((t: string) => t.trim().toLowerCase())
         : typeof tags === "string"
-        ? tags.split(",").map((t: string) => t.trim())
+        ? tags.split(",").map((t: string) => t.trim().toLowerCase())
         : [];
     }
 
@@ -150,10 +171,10 @@ export const updatePostMeta = async (req: Request, res: Response) => {
     }
 
     await postMeta.save();
-    return res.json({ message: "PostMeta updated successfully", postMeta });
+    return res.json({ success: true, message: "PostMeta updated successfully", data: postMeta });
   } catch (err: any) {
     console.error("Error updating post meta:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
 

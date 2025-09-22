@@ -16,13 +16,15 @@ type FeedItem =
 // ✅ AuthRequest now just reuses globally declared Request type
 type AuthRequest = Request;
 
-// ---------------- CREATE POST ----------------
+/// ---------------- CREATE POST ----------------
 export const createPost = async (req: AuthRequest, res: Response) => {
   try {
     await connectDB();
 
     if (!req.user?.id || !req.user.role) {
-      return res.status(403).json({ message: "Access denied: not authenticated" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied: not authenticated" });
     }
 
     const allowedRoles = ["admin", "moderator"];
@@ -30,15 +32,18 @@ export const createPost = async (req: AuthRequest, res: Response) => {
     const isOwner = true; // create ke time hamesha true
 
     if (!isAdminOrMod && !isOwner) {
-      return res.status(403).json({ message: "Access denied" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied" });
     }
 
     const { title, description, content, category, tags } = req.body;
 
     if (!title || !description || !content) {
-      return res
-        .status(400)
-        .json({ message: "Title, description, and content are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Title, description, and content are required",
+      });
     }
 
     // ✅ Parse content safely
@@ -47,7 +52,9 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       try {
         parsedContent = JSON.parse(content);
       } catch {
-        return res.status(400).json({ message: "Invalid content JSON" });
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid content JSON" });
       }
     }
 
@@ -56,7 +63,11 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 
     if (files?.length) {
       for (const f of files) {
-        const up = await uploadBufferToCloudinary(f.buffer, f.mimetype, "posts");
+        const up = await uploadBufferToCloudinary(
+          f.buffer,
+          f.mimetype,
+          "posts"
+        );
         images.push(up.url);
       }
     }
@@ -66,34 +77,43 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       "name username avatarUrl isGoldenVerified"
     );
     if (!userDoc) {
-      return res.status(404).json({ message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
+
+    // ✅ Normalize category + tags
+    const normalizedCategory = category ? category.trim().toLowerCase() : "General";
+    const normalizedTags = Array.isArray(tags)
+      ? tags.map((t: string) => t.trim().toLowerCase())
+      : typeof tags === "string"
+      ? tags.split(",").map((t: string) => t.trim().toLowerCase())
+      : [];
 
     const post = await Post.create({
       title,
       description,
       content: parsedContent, // ✅ Always parsed JSON here
-      category: category || "General",
-      tags: Array.isArray(tags)
-        ? tags
-        : typeof tags === "string"
-        ? tags.split(",").map((t: string) => t.trim())
-        : [],
+      category: normalizedCategory, // schema hook will auto-detect if "General"
+      tags: normalizedTags,
       images,
       authorId: userDoc._id,
       authorName: userDoc.name,
-      authorUsername: userDoc.username,       // ✅ from DB
+      authorUsername: userDoc.username, // ✅ from DB
       authorAvatar: userDoc.avatarUrl || "",
-      isGoldenVerified: userDoc.isGoldenVerified // ✅ from DB
+      isGoldenVerified: userDoc.isGoldenVerified, // ✅ from DB
     });
 
-    return res.status(201).json({ post });
+    return res.status(201).json({ success: true, data: post });
   } catch (err: any) {
     console.error("Error creating post:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
   }
 };
-
 // ---------------- UPDATE POST ----------------
 export const updatePost = async (req: AuthRequest, res: Response) => {
   try {
@@ -104,7 +124,7 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
 
     const post = await Post.findById(postId);
     if (!post) {
-      return res.status(404).json({ message: "Post not found" });
+      return res.status(404).json({ success: false, message: "Post not found" });
     }
 
     const userId = req.user?.id;
@@ -113,7 +133,7 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     const isOwner = post.authorId.toString() === userId;
 
     if (!isOwner && !isAdminOrMod) {
-      return res.status(403).json({ message: "Not authorized to edit this post" });
+      return res.status(403).json({ success: false, message: "Not authorized to edit this post" });
     }
 
     // ✅ Refresh author info from DB
@@ -136,19 +156,22 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
         try {
           post.content = JSON.parse(content);
         } catch {
-          return res.status(400).json({ message: "Invalid content JSON" });
+          return res.status(400).json({ success: false, message: "Invalid content JSON" });
         }
       } else {
         post.content = content;
       }
     }
 
-    if (category) post.category = category;
+    // ✅ Normalize category + tags
+    if (category) {
+      post.category = category.trim().toLowerCase();
+    }
     if (tags) {
       post.tags = Array.isArray(tags)
-        ? tags
+        ? tags.map((t: string) => t.trim().toLowerCase())
         : typeof tags === "string"
-        ? tags.split(",").map((t: string) => t.trim())
+        ? tags.split(",").map((t: string) => t.trim().toLowerCase())
         : [];
     }
 
@@ -165,10 +188,10 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     }
 
     await post.save();
-    return res.json({ message: "Post updated successfully", post });
+    return res.json({ success: true, message: "Post updated successfully", data: post });
   } catch (err: any) {
     console.error("Error updating post:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
 

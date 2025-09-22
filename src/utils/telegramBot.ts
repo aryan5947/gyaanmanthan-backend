@@ -413,3 +413,43 @@ async function editTelegramMessage(chatId: number, messageId: number, text: stri
     body: JSON.stringify({ chat_id: chatId, message_id: messageId, text })
   });
 }
+
+// -------------------- DEMO helpers for testing --------------------
+
+// Send user actions menu directly by userId
+export async function sendUserActionsMenu(userId: string, chatId?: string | number) {
+  try {
+    const user = await User.findById(userId).lean() as any;
+    if (!user) {
+      return await sendTelegramMessage(`❌ User ${userId} not found`, chatId);
+    }
+    await sendTelegramAlertWithButtons(
+      `Actions for @${user.username}`,
+      `Choose an action below:`,
+      buildUserActionsButtons(user),
+      chatId
+    );
+    await logAction('SEND_MENU', `Sent user actions menu manually`, {}, userId, 'User');
+  } catch (err) {
+    logger.error('sendUserActionsMenu failed:', err);
+  }
+}
+
+// Send post actions menu directly by postId
+export async function sendPostActionsMenu(postId: string, chatId?: string | number) {
+  try {
+    const post = await Post.findById(postId).lean() as any;
+    if (!post) {
+      return await sendTelegramMessage(`❌ Post ${postId} not found`, chatId);
+    }
+    await sendTelegramAlertWithButtons(
+      `Actions for Post ${postId}`,
+      `Choose an action below:`,
+      buildPostActionsButtons(postId, post.user?.toString()),
+      chatId
+    );
+    await logAction('SEND_MENU', `Sent post actions menu manually`, {}, postId, 'Post');
+  } catch (err) {
+    logger.error('sendPostActionsMenu failed:', err);
+  }
+}

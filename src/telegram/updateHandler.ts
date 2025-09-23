@@ -1,6 +1,7 @@
 import { handleActionsMenu, handlePostOwnerMenu, handlePostMetaMenu } from "./handlers/menuHandlers.js";
 import * as userHandlers from "./handlers/userHandlers.js";
 import * as postHandlers from "./handlers/postHandlers.js";
+import * as metaHandlers from "./handlers/metaHandlers.js";   // ✅ नया Meta Handlers import
 import { answerCallback } from "./api.js";
 import { logger } from "./logger.js";
 
@@ -13,7 +14,7 @@ export async function handleTelegramUpdate(update: any) {
     // 🔹 User & Owner Menus
     "actions_": handleActionsMenu,
     "post_owner_": handlePostOwnerMenu,
-    "post_meta_": handlePostMetaMenu,   // ✅ नया Meta Menu route
+    "post_meta_": handlePostMetaMenu,   // ✅ Meta Menu route
 
     // 🔹 User Handlers
     "ban_": userHandlers.handleBan,
@@ -32,6 +33,11 @@ export async function handleTelegramUpdate(update: any) {
     "resolveMeta_": postHandlers.handleResolveMeta,
     "resolvePost_": postHandlers.handleResolvePost,
     "view_": postHandlers.handleViewPost,
+
+    // 🔹 PostMeta Handlers (नए वाले)
+    "rescore_": metaHandlers.handleRescore,
+    "normalize_": metaHandlers.handleNormalize,
+    "flag_": metaHandlers.handleFlag,
   };
 
   try {

@@ -1,11 +1,11 @@
 import { sendTelegramAlertWithButtons, answerCallback } from "../api.js";
-import { buildUserActionsButtons } from "../buttons.js";
+import { buildUserActionsButtons, buildMetaActionsButtons } from "../buttons.js"; // ✅ Meta buttons भी import
 import { User } from "../../models/User.js";
 import { Post } from "../../models/Post.js";
-import { PostMeta } from "../../models/PostMeta.js";  // ✅ जोड़ लिया
+import { PostMeta } from "../../models/PostMeta.js";
 import { logger } from "../logger.js";
 
-// User Actions Menu
+// 🔹 User Actions Menu
 export async function handleActionsMenu(update: any) {
   const callbackId = update.callback_query.id;
   const chatId = update.callback_query.message.chat.id;
@@ -36,7 +36,7 @@ export async function handleActionsMenu(update: any) {
   }
 }
 
-// Post Owner Actions Menu
+// 🔹 Post Owner Actions Menu
 export async function handlePostOwnerMenu(update: any) {
   const callbackId = update.callback_query.id;
   const chatId = update.callback_query.message.chat.id;
@@ -62,7 +62,7 @@ export async function handlePostOwnerMenu(update: any) {
   }
 }
 
-// ✅ New: PostMeta Actions Menu
+// 🔹 PostMeta Actions Menu
 export async function handlePostMetaMenu(update: any) {
   const callbackId = update.callback_query.id;
   const chatId = update.callback_query.message.chat.id;
@@ -78,10 +78,11 @@ export async function handlePostMetaMenu(update: any) {
     const user = await User.findById(post.user).lean() as any;
     if (!user) return await answerCallback(callbackId, "❌ Owner not found");
 
+    // ✅ अब Meta Actions दिखेंगे
     await sendTelegramAlertWithButtons(
       `Meta Actions for Post ${post._id}`,
       `Owner: @${user.username}\nMeta ID: ${metaId}`,
-      buildUserActionsButtons(user), // 👉 चाहें तो यहां अलग buildMetaActionsButtons बना सकते हैं
+      buildMetaActionsButtons(metaId, post._id),
       chatId
     );
 

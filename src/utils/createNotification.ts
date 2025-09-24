@@ -11,7 +11,8 @@ interface NotificationPayload {
   relatedUser?: mongoose.Types.ObjectId;
   relatedPost?: mongoose.Types.ObjectId;
   relatedPostMeta?: mongoose.Types.ObjectId;
-  relatedComment?: mongoose.Types.ObjectId; // ✅ added for comment mentions
+  relatedComment?: mongoose.Types.ObjectId; 
+  relatedPostMetaComment?: mongoose.Types.ObjectId; // ✅ added for PostMetaComment mentions
 }
 
 export const createNotification = async ({
@@ -24,7 +25,8 @@ export const createNotification = async ({
   relatedUser,
   relatedPost,
   relatedPostMeta,
-  relatedComment
+  relatedComment,
+  relatedPostMetaComment
 }: NotificationPayload): Promise<void> => {
   await Notification.create({
     userId,
@@ -36,6 +38,7 @@ export const createNotification = async ({
     relatedUser: relatedUser || null,
     relatedPost: relatedPost || null,
     relatedPostMeta: relatedPostMeta || null,
-    relatedComment: relatedComment || null // ✅ now supported
+    relatedComment: relatedComment || null,
+    relatedPostMetaComment: relatedPostMetaComment || null // ✅ now supported
   });
 };

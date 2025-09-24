@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PostMeta } from "../models/PostMeta";
 import { PostMetaComment } from '../models/postMetaComment';
+import { createMentions } from "../controllers/mentionController.js";
 import { Types } from "mongoose";
 
 // ✅ PostMeta owner check
@@ -30,11 +31,19 @@ export const addMetaComment = async (req: Request, res: Response) => {
       likes: 0,
       likedBy: [],
       replies: [],
+      createdAt: new Date(),
     });
 
     // ✅ increment commentCount on parent PostMeta
     await PostMeta.findByIdAndUpdate(postMetaId, {
       $inc: { commentCount: 1 },
+    });
+
+    // ✅ Detect mentions in PostMeta comment text
+    await createMentions({
+      text,
+      postMetaCommentId: (comment._id as Types.ObjectId).toString(),
+      mentionedBy: req.user._id.toString(),
     });
 
     return res.status(201).json(comment);
@@ -60,7 +69,7 @@ export const addMetaReply = async (req: Request, res: Response) => {
     const comment = await PostMetaComment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    comment.replies.push({
+    const reply = {
       authorId: req.user._id,
       authorName: req.user.name,
       authorAvatar: req.user.avatarUrl ?? undefined,
@@ -68,13 +77,21 @@ export const addMetaReply = async (req: Request, res: Response) => {
       likes: 0,
       likedBy: [],
       createdAt: new Date(),
-    });
+    };
 
+    comment.replies.push(reply);
     await comment.save();
 
     // ✅ agar replies ko bhi count me lena hai
     await PostMeta.findByIdAndUpdate(comment.postMetaId, {
       $inc: { commentCount: 1 },
+    });
+
+    // ✅ Detect mentions in PostMeta reply text
+    await createMentions({
+      text,
+      postMetaCommentId: (comment._id as Types.ObjectId).toString(),
+      mentionedBy: req.user._id.toString(),
     });
 
     return res.status(201).json(comment);
@@ -83,6 +100,7 @@ export const addMetaReply = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // ---------------- TOGGLE LIKE COMMENT ----------------
 export const toggleLikeMetaComment = async (req: Request, res: Response) => {

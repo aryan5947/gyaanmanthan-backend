@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Comment } from "../models/Comment";
+import { createMentions } from "../controllers/mentionController.js";
 import { Post } from "../models/Post"; 
 import { Types } from "mongoose";
 
@@ -18,7 +19,7 @@ const isOwner = (reqUserId: any, resourceAuthorId: any) =>
   reqUserId?.toString() === resourceAuthorId?.toString();
 // ✅ ensure import at top
 
-// ---------------- ADD COMMENT ----------------
+/// ---------------- ADD COMMENT ----------------
 export const addComment = async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -47,6 +48,13 @@ export const addComment = async (req: Request, res: Response) => {
     // ✅ increment commentCount on parent Post
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
 
+    // ✅ Detect mentions in comment text
+    await createMentions({
+      text,
+      commentId: (comment._id as Types.ObjectId).toString(),
+      mentionedBy: req.user._id.toString(),
+    });
+
     return res.status(201).json(comment);
   } catch (err: any) {
     console.error("Error adding comment:", err);
@@ -70,7 +78,7 @@ export const addReply = async (req: Request, res: Response) => {
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    comment.replies.push({
+    const reply = {
       authorId: req.user._id,
       authorName: req.user.name,
       authorAvatar: req.user.avatarUrl ?? undefined,
@@ -78,12 +86,20 @@ export const addReply = async (req: Request, res: Response) => {
       likes: 0,
       likedBy: [],
       createdAt: new Date(),
-    });
+    };
 
+    comment.replies.push(reply);
     await comment.save();
 
     // ✅ agar replies ko bhi count me lena hai
     await Post.findByIdAndUpdate(comment.postId, { $inc: { commentCount: 1 } });
+
+    // ✅ Detect mentions in reply text
+    await createMentions({
+      text,
+      commentId: (comment._id as Types.ObjectId).toString(),
+      mentionedBy: req.user._id.toString(),
+    });
 
     return res.status(201).json(comment);
   } catch (err: any) {

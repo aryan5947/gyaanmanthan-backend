@@ -8,10 +8,12 @@ import mongoose from "mongoose";
 import { IAd } from "../models/Ad";
 import { Like } from "../models/LikePostMeta";
 import { SavedPostMeta } from "../models/SavedPostMeta";
+import { createMentions } from "../controllers/mentionController.js";
 
 type FeedItem =
    | { type: "postMeta"; data: IPostMeta }
   | { type: "sponsored"; data: IAd };
+
 // ---------------- CREATE POST META ----------------
 export const createPostMeta = async (req: Request, res: Response) => {
   try {
@@ -34,14 +36,24 @@ export const createPostMeta = async (req: Request, res: Response) => {
         .json({ success: false, message: "Title is required" });
     }
 
-    const filesArr: { url: string; type: string; name?: string; size?: number }[] = [];
+    const filesArr: {
+      url: string;
+      type: string;
+      name?: string;
+      size?: number;
+    }[] = [];
+
     const files = (req as any).files as Express.Multer.File[] | undefined;
 
     if (files?.length) {
       for (const f of files) {
         try {
-          // ✅ Utility अब खुद resource_type detect करेगा
-          const up = await uploadBufferToCloudinary(f.buffer, f.mimetype, "post-meta");
+          // ✅ Upload
+          const up = await uploadBufferToCloudinary(
+            f.buffer,
+            f.mimetype,
+            "post-meta"
+          );
 
           // ✅ Normalize type for schema
           let normalizedType = "file";
@@ -75,17 +87,21 @@ export const createPostMeta = async (req: Request, res: Response) => {
     }
 
     // ✅ Normalize category + tags
-    const normalizedCategory = category ? category.trim().toLowerCase() : "General";
-    const normalizedTags = Array.isArray(tags)
-      ? tags.map((t: string) => t.trim().toLowerCase())
-      : typeof tags === "string"
-      ? tags.split(",").map((t: string) => t.trim().toLowerCase())
-      : [];
+    const normalizedCategory = category
+      ? category.trim().toLowerCase()
+      : "general";
 
-    const postMeta = await PostMeta.create({
+    const normalizedTags =
+      Array.isArray(tags) && tags.length > 0
+        ? tags.map((t: string) => t.trim().toLowerCase())
+        : typeof tags === "string"
+        ? tags.split(",").map((t: string) => t.trim().toLowerCase())
+        : [];
+
+    const postMeta: IPostMeta = await PostMeta.create({
       title,
       description,
-      category: normalizedCategory, // schema hook will auto-detect if "General"
+      category: normalizedCategory,
       tags: normalizedTags,
       files: filesArr,
       authorId: userDoc._id,
@@ -94,6 +110,15 @@ export const createPostMeta = async (req: Request, res: Response) => {
       authorAvatar: userDoc.avatarUrl || "",
       isGoldenVerified: userDoc.isGoldenVerified,
     });
+
+    // ✅ Detect mentions from TITLE
+    if (title) {
+      await createMentions({
+       text: title,
+       postMetaId: (postMeta._id as mongoose.Types.ObjectId).toString(),
+       mentionedBy: req.user.id,
+      });
+    }
 
     return res.status(201).json({ success: true, data: postMeta });
   } catch (err: any) {
@@ -105,6 +130,7 @@ export const createPostMeta = async (req: Request, res: Response) => {
     });
   }
 };
+
 // ---------------- UPDATE POST META ----------------
 export const updatePostMeta = async (req: Request, res: Response) => {
   try {

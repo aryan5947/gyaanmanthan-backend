@@ -1,19 +1,19 @@
 import { Request, Response } from "express";
-import { connectDB } from "../config/db";
-import { Post, IPost } from "../models/Post";
-import { User } from "../models/User";
+import { connectDB } from "../config/db.js";
+import { Post, IPost } from "../models/Post.js";
+import { User } from "../models/User.js";
 import mongoose from "mongoose";
-import { uploadBufferToCloudinary } from "../utils/cloudinary";
-import { getSponsoredForFeed } from "./adController";
-import { IAd } from "../models/Ad";
-import { PostLike } from "../models/PostLike";
-import { SavedPost } from "../models/SavedPost";
+import { uploadBufferToCloudinary } from "../utils/cloudinary.js";
+import { getSponsoredForFeed } from "./adController.js";
+import { IAd } from "../models/Ad.js";
+import { PostLike } from "../models/PostLike.js";
+import { SavedPost } from "../models/SavedPost.js";
+import { createMentions } from "../controllers/mentionController.js"; // ✅ import
 
 type FeedItem =
   | { type: "post"; data: IPost }
   | { type: "sponsored"; data: IAd };
 
-// ✅ AuthRequest now just reuses globally declared Request type
 type AuthRequest = Request;
 
 /// ---------------- CREATE POST ----------------
@@ -83,26 +83,55 @@ export const createPost = async (req: AuthRequest, res: Response) => {
     }
 
     // ✅ Normalize category + tags
-    const normalizedCategory = category ? category.trim().toLowerCase() : "General";
+    const normalizedCategory = category ? category.trim().toLowerCase() : "general";
     const normalizedTags = Array.isArray(tags)
       ? tags.map((t: string) => t.trim().toLowerCase())
       : typeof tags === "string"
       ? tags.split(",").map((t: string) => t.trim().toLowerCase())
       : [];
 
-    const post = await Post.create({
+    const post: IPost = await Post.create({
       title,
       description,
-      content: parsedContent, // ✅ Always parsed JSON here
-      category: normalizedCategory, // schema hook will auto-detect if "General"
+      content: parsedContent,
+      category: normalizedCategory,
       tags: normalizedTags,
       images,
       authorId: userDoc._id,
       authorName: userDoc.name,
-      authorUsername: userDoc.username, // ✅ from DB
+      authorUsername: userDoc.username,
       authorAvatar: userDoc.avatarUrl || "",
-      isGoldenVerified: userDoc.isGoldenVerified, // ✅ from DB
+      isGoldenVerified: userDoc.isGoldenVerified,
     });
+
+    // ✅ Detect mentions from title, description, and content
+    if (title) {
+      await createMentions({
+        text: title,
+        postId: (post._id as mongoose.Types.ObjectId).toString(), // ✅ cast applied
+        mentionedBy: req.user!.id,
+      });
+    }
+
+    if (description) {
+      await createMentions({
+        text: description,
+        postId: (post._id as mongoose.Types.ObjectId).toString(), // ✅ cast applied
+        mentionedBy: req.user!.id,
+      });
+    }
+
+    if (parsedContent) {
+      // Agar content JSON hai aur usme text fields hain
+      const contentText =
+        typeof parsedContent === "string"
+          ? parsedContent
+          : JSON.stringify(parsedContent);
+
+      await createMentions({
+        text: contentText,
+        postId: (post._id as mongoose.Types.ObjectId).toString(), // ✅ cast applied
+        mentionedBy: req.user!.id,}); }
 
     return res.status(201).json({ success: true, data: post });
   } catch (err: any) {
@@ -114,6 +143,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
 // ---------------- UPDATE POST ----------------
 export const updatePost = async (req: AuthRequest, res: Response) => {
   try {
@@ -147,8 +177,27 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
       post.isGoldenVerified = userDoc.isGoldenVerified;
     }
 
-    if (title) post.title = title;
-    if (description) post.description = description;
+    if (title) {
+      post.title = title;
+
+      // ✅ Mentions from updated title
+      await createMentions({
+        text: title,
+        postId: (post._id as mongoose.Types.ObjectId).toString(),
+        mentionedBy: req.user!.id,
+      });
+    }
+
+    if (description) {
+      post.description = description;
+
+      // ✅ Mentions from updated description
+      await createMentions({
+        text: description,
+        postId: (post._id as mongoose.Types.ObjectId).toString(),
+        mentionedBy: req.user!.id,
+      });
+    }
 
     // ✅ Parse content safely
     if (content) {
@@ -161,6 +210,18 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
       } else {
         post.content = content;
       }
+
+      // ✅ Mentions from updated content
+      const contentText =
+        typeof post.content === "string"
+          ? post.content
+          : JSON.stringify(post.content);
+
+      await createMentions({
+        text: contentText,
+        postId: (post._id as mongoose.Types.ObjectId).toString(),
+        mentionedBy: req.user!.id,
+      });
     }
 
     // ✅ Normalize category + tags

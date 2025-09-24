@@ -3,18 +3,20 @@ import { Types } from "mongoose";
 import { Mention } from "../models/Mention.js"; // ✅ add .js extension
 import { createNotification } from "../utils/createNotification.js"; // ✅ add .js extension
 
-// ✅ Create mention (called from post/comment/postMeta save logic)
+// ✅ Create mention (called from post/comment/postMeta/postMetaComment save logic)
 export async function createMentions({
   text,
   postId,
   commentId,
   postMetaId,
+  postMetaCommentId,
   mentionedBy
 }: {
   text: string;
   postId?: string;
   commentId?: string;
   postMetaId?: string;
+  postMetaCommentId?: string;
   mentionedBy: string;
 }) {
   const regex = /@([a-zA-Z0-9_]+)/g;
@@ -33,6 +35,7 @@ export async function createMentions({
       postId,
       commentId,
       postMetaId,
+      postMetaCommentId, // ✅ new field
       mentionedUser: user._id,
       mentionedBy,
     });
@@ -42,11 +45,20 @@ export async function createMentions({
       userId: user._id as Types.ObjectId,
       type: "mention",
       message: `You were mentioned in a ${
-        postId ? "post" : commentId ? "comment" : "postMeta"
+        postId
+          ? "post"
+          : commentId
+          ? "comment"
+          : postMetaCommentId
+          ? "postMeta comment"
+          : "postMeta"
       }`,
       relatedPost: postId ? new Types.ObjectId(postId) : undefined,
       relatedComment: commentId ? new Types.ObjectId(commentId) : undefined,
       relatedPostMeta: postMetaId ? new Types.ObjectId(postMetaId) : undefined,
+      relatedPostMetaComment: postMetaCommentId
+        ? new Types.ObjectId(postMetaCommentId)
+        : undefined,
     });
   }
 }
@@ -83,6 +95,7 @@ export async function getAcceptedMentions(req: Request, res: Response) {
     .populate("postId", "content")
     .populate("commentId", "content")
     .populate("postMetaId", "content")
+    .populate("postMetaCommentId", "content") // ✅ populate new field
     .sort({ createdAt: -1 });
 
   res.json(mentions);

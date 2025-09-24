@@ -22,12 +22,19 @@ export interface IPostMeta extends Document {
   stats: {
     views: number;
     likes: number;
+    clicks?: number; // ✅ added for ads
   };
   status: "active" | "restricted" | "blocked" | "deleted";
   restrictionReason?: string | null;
   copyrightScanStatus: "pending" | "passed" | "failed" | "disputed";
   createdAt: Date;
   updatedAt: Date;
+
+  // ✅ Ad-specific optional fields
+  postType?: "post" | "ad";
+  ctaText?: string;
+  ctaUrl?: string;
+  targeting?: { tags: string[]; country?: string };
 }
 
 /**
@@ -63,6 +70,7 @@ const postMetaSchema = new Schema<IPostMeta>(
     stats: {
       views: { type: Number, default: 0 },
       likes: { type: Number, default: 0 },
+      clicks: { type: Number, default: 0 }, // ✅ added
     },
     status: {
       type: String,
@@ -76,6 +84,15 @@ const postMetaSchema = new Schema<IPostMeta>(
       enum: ["pending", "passed", "failed", "disputed"],
       default: "pending",
       index: true,
+    },
+
+    // ✅ Ad-specific optional fields
+    postType: { type: String, enum: ["post", "ad"], default: "post", index: true },
+    ctaText: { type: String },
+    ctaUrl: { type: String },
+    targeting: {
+      tags: [{ type: String }],
+      country: String,
     },
   },
   { timestamps: true }
@@ -114,7 +131,7 @@ const CATEGORY_MAP: Record<string, string> = {
 
 // Auto-category assignment
 postMetaSchema.pre("save", function (next) {
-  if (!this.category || this.category === "General") {
+  if ((!this.category || this.category === "General") && this.postType !== "ad") {
     const text = (this.title + " " + (this.tags || []).join(" ")).toLowerCase();
     const words = text.split(/\W+/).filter(Boolean);
 

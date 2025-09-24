@@ -115,7 +115,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/postreports", postReportRoutes);
 app.use("/api/postmetareports", postMetaReportRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/ads', auth, adRoutes);
+app.use('/api/ads', adRoutes);
 app.use('/api/affiliate', auth, affiliateRoutes);
 app.use('/api/wallet', auth, walletRoutes);
 

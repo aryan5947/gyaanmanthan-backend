@@ -1,6 +1,6 @@
 // utils/cloudinary.ts
-import { v2 as cloudinary } from 'cloudinary';
-import { env } from '../config/env';
+import { v2 as cloudinary } from "cloudinary";
+import { env } from "../config/env";
 
 // ✅ Flexible config: prefer full URL if provided, else use individual keys
 if (env.cloudinary.url) {
@@ -26,13 +26,18 @@ export async function uploadBufferToCloudinary(
   folder: string = env.cloudinary.folder
 ) {
   try {
+    // ✅ Decide resource_type dynamically
+    let resourceType: "image" | "video" | "raw" = "raw";
+    if (mimetype.startsWith("image/")) resourceType = "image";
+    else if (mimetype.startsWith("video/")) resourceType = "video";
+
     // ✅ Convert buffer to Data URI
-    const dataURI = `data:${mimetype};base64,${buffer.toString('base64')}`;
+    const dataURI = `data:${mimetype};base64,${buffer.toString("base64")}`;
 
     // ✅ Upload to Cloudinary
     const res = await cloudinary.uploader.upload(dataURI, {
       folder,
-      resource_type: 'image',
+      resource_type: resourceType,
     });
 
     return {
@@ -42,9 +47,10 @@ export async function uploadBufferToCloudinary(
       height: res.height,
       bytes: res.bytes,
       format: res.format,
+      resourceType,
     };
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
-    throw new Error('Failed to upload image to Cloudinary');
+    console.error("Cloudinary upload error:", error);
+    throw new Error("Failed to upload file to Cloudinary");
   }
 }

@@ -2,7 +2,7 @@ import { handleActionsMenu, handlePostOwnerMenu, handlePostMetaMenu } from "./me
 import * as userHandlers from "./userHandlers.js";
 import * as postHandlers from "./postHandlers.js";
 import * as metaHandlers from "./metaHandlers.js";
-import { answerCallback } from "../api.js";
+import { answerCallback, sendTelegramAlertWithButtons } from "../api.js";
 import { logger } from "../logger.js";
 
 /**
@@ -16,11 +16,42 @@ export async function handleTextCommand(update: any) {
   const text = update.message.text.trim();
   const parts = text.split(" ");
   const command = parts[0].toLowerCase();
-  const arg1 = parts[1]; // userId / postId / metaId
-  const arg2 = parts[2]; // optional (amount, role, plan)
+  const arg1 = parts[1];
+  const arg2 = parts[2];
 
   try {
     switch (command) {
+      // 🔹 Help Command
+      case "/help": {
+        const helpText = `
+📖 *Available Commands*
+
+👤 User:
+- /menu <userId|@username>
+- /ban <userId>
+- /unban <userId>
+- /wallet <userId> <amount>
+- /role <userId> <admin|user>
+- /plan <userId> <free|partner>
+- /stats <userId>
+- /logout <userId>
+
+📝 Post:
+- /post <postId>
+- /delete <postId>
+- /restore <postId>
+- /resolvepost <postId>
+
+📌 PostMeta:
+- /meta <metaId>
+- /resolvemeta <metaId>
+- /rescore <metaId>
+- /normalize <metaId>
+- /flag <metaId>
+        `;
+        return await sendTelegramAlertWithButtons("⚡ Command Reference", helpText, [], chatId);
+      }
+
       // 🔹 Menus
       case "/menu": {
         if (!arg1) return await answerCallback("manual", "❌ Usage: /menu <userId|@username>");

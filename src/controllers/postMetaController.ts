@@ -12,7 +12,6 @@ import { SavedPostMeta } from "../models/SavedPostMeta";
 type FeedItem =
    | { type: "postMeta"; data: IPostMeta }
   | { type: "sponsored"; data: IAd };
-
 // ---------------- CREATE POST META ----------------
 export const createPostMeta = async (req: Request, res: Response) => {
   try {
@@ -40,21 +39,28 @@ export const createPostMeta = async (req: Request, res: Response) => {
 
     if (files?.length) {
       for (const f of files) {
-        const up = await uploadBufferToCloudinary(
-          f.buffer,
-          f.mimetype,
-          "post-meta"
-        );
-        filesArr.push({
-          url: up.url,
-          type: f.mimetype.startsWith("image")
-            ? "image"
-            : f.mimetype.startsWith("video")
-            ? "video"
-            : "file",
-          name: f.originalname,
-          size: f.size,
-        });
+        try {
+          // ✅ Utility अब खुद resource_type detect करेगा
+          const up = await uploadBufferToCloudinary(f.buffer, f.mimetype, "post-meta");
+
+          // ✅ Normalize type for schema
+          let normalizedType = "file";
+          if (f.mimetype.startsWith("image/")) normalizedType = "image";
+          else if (f.mimetype.startsWith("video/")) normalizedType = "video";
+          else if (f.mimetype === "application/pdf") normalizedType = "pdf";
+          else if (f.mimetype.includes("word")) normalizedType = "word";
+          else if (f.mimetype.includes("presentation")) normalizedType = "ppt";
+
+          filesArr.push({
+            url: up.url,
+            type: normalizedType,
+            name: f.originalname,
+            size: f.size,
+          });
+        } catch (uploadErr) {
+          console.error("File upload failed:", f.originalname, uploadErr);
+          // continue with other files instead of failing whole request
+        }
       }
     }
 
@@ -84,9 +90,9 @@ export const createPostMeta = async (req: Request, res: Response) => {
       files: filesArr,
       authorId: userDoc._id,
       authorName: userDoc.name,
-      authorUsername: userDoc.username, // ✅ from DB
+      authorUsername: userDoc.username,
       authorAvatar: userDoc.avatarUrl || "",
-      isGoldenVerified: userDoc.isGoldenVerified, // ✅ from DB
+      isGoldenVerified: userDoc.isGoldenVerified,
     });
 
     return res.status(201).json({ success: true, data: postMeta });

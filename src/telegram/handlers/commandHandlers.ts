@@ -3,6 +3,7 @@ import * as userHandlers from "./userHandlers.js";
 import * as postHandlers from "./postHandlers.js";
 import * as metaHandlers from "./metaHandlers.js";
 import { answerCallback, sendTelegramAlertWithButtons } from "../api.js";
+import * as adHandlers from "./adHandlers.js";
 import { logger } from "../logger.js";
 
 /**
@@ -48,6 +49,13 @@ export async function handleTextCommand(update: any) {
 - /rescore <metaId>
 - /normalize <metaId>
 - /flag <metaId>
+
+📢 Ads:
+- /ad <adId>
+- /deletead <adId>
+- /restoread <adId>
+- /resolvead <adId>
+- /viewad <adId> 
         `;
         return await sendTelegramAlertWithButtons("⚡ Command Reference", helpText, [], chatId);
       }
@@ -172,6 +180,42 @@ export async function handleTextCommand(update: any) {
         if (!arg1) return await answerCallback("manual", "❌ Usage: /flag <metaId>");
         return await metaHandlers.handleFlag({
           callback_query: { id: "manual", message: { chat: { id: chatId } }, data: `flag_${arg1}` },
+        });
+      }
+
+      // 🔹 Ads Commands
+      case "/ad": {
+        if (!arg1) return await answerCallback("manual", "❌ Usage: /ad <adId>");
+        return await adHandlers.handleAdMenu({
+         callback_query: { id: "manual", message: { chat: { id: chatId } }, data: `ad_${arg1}` },
+        });
+      }
+
+      case "/deletead": {
+        if (!arg1) return await answerCallback("manual", "❌ Usage: /deletead <adId>");
+        return await adHandlers.handleDeleteAd({
+         callback_query: { id: "manual", message: { chat: { id: chatId } }, data: `deleteAd_${arg1}` },
+        });
+      }
+
+      case "/restoread": {
+        if (!arg1) return await answerCallback("manual", "❌ Usage: /restoread <adId>");
+        return await adHandlers.handleRestoreAd({
+         callback_query: { id: "manual", message: { chat: { id: chatId } }, data: `restoreAd_${arg1}` },
+        });
+      }
+
+      case "/resolvead": {
+        if (!arg1) return await answerCallback("manual", "❌ Usage: /resolvead <adId>");
+        return await adHandlers.handleResolveAd({
+          callback_query: { id: "manual", message: { chat: { id: chatId } }, data: `resolveAd_${arg1}` },
+        });
+      }
+
+      case "/viewad": {
+        if (!arg1) return await answerCallback("manual", "❌ Usage: /viewad <adId>");
+        return await adHandlers.handleViewAd({
+          callback_query: { id: "manual", message: { chat: { id: chatId } }, data: `viewAd_${arg1}` },
         });
       }
 

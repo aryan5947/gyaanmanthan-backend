@@ -1,7 +1,8 @@
 import { handleActionsMenu, handlePostOwnerMenu, handlePostMetaMenu } from "./handlers/menuHandlers.js";
 import * as userHandlers from "./handlers/userHandlers.js";
 import * as postHandlers from "./handlers/postHandlers.js";
-import * as metaHandlers from "./handlers/metaHandlers.js";   // ✅ नया Meta Handlers import
+import * as metaHandlers from "./handlers/metaHandlers.js";   // ✅ Meta Handlers import
+import * as adHandlers from "./handlers/adHandlers.js";       // ✅ Ads Handlers import
 import { answerCallback } from "./api.js";
 import { logger } from "./logger.js";
 
@@ -34,10 +35,17 @@ export async function handleTelegramUpdate(update: any) {
     "resolvePost_": postHandlers.handleResolvePost,
     "view_": postHandlers.handleViewPost,
 
-    // 🔹 PostMeta Handlers (नए वाले)
+    // 🔹 PostMeta Handlers
     "rescore_": metaHandlers.handleRescore,
     "normalize_": metaHandlers.handleNormalize,
     "flag_": metaHandlers.handleFlag,
+
+    // 🔹 Ads Handlers (नए वाले)
+    "ad_": adHandlers.handleAdMenu,
+    "deleteAd_": adHandlers.handleDeleteAd,
+    "restoreAd_": adHandlers.handleRestoreAd,
+    "resolveAd_": adHandlers.handleResolveAd,
+    "viewAd_": adHandlers.handleViewAd,   // optional, agar tumne implement kiya hai
   };
 
   try {

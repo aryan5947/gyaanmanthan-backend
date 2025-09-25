@@ -5,7 +5,42 @@ import { PostMeta } from "../models/PostMeta";
 // ✅ Create Ad
 export const createAd = async (req: Request, res: Response) => {
   try {
-    const { title, description, files, ctaText, ctaUrl, targeting } = req.body;
+    const { title, description, ctaText, ctaUrl, targeting } = req.body;
+
+    // Build files array from Multer
+    let files: {
+      url: string;
+      type: string;
+      name?: string;
+      size?: number;
+    }[] = [];
+
+    if (req.file) {
+      // Single file upload
+      files.push({
+        url: `/uploads/${req.file.filename}`, // or Cloudinary URL if you use cloud storage
+        type: req.file.mimetype,
+        name: req.file.originalname,
+        size: req.file.size,
+      });
+    } else if (Array.isArray((req as any).files)) {
+      // Multiple files upload
+      files = (req as any).files.map((f: Express.Multer.File) => ({
+        url: `/uploads/${f.filename}`,
+        type: f.mimetype,
+        name: f.originalname,
+        size: f.size,
+      }));
+    }
+
+    // Author info from auth middleware
+    const user = (req as any).user || {
+      _id: null,
+      name: "System",
+      username: "sponsored",
+      avatar: null,
+      isGoldenVerified: false,
+    };
 
     const ad = await PostMeta.create({
       title,
@@ -15,14 +50,17 @@ export const createAd = async (req: Request, res: Response) => {
       ctaUrl,
       targeting,
       postType: "ad",
-      authorName: "System",
-      authorUsername: "sponsored",
-      isGoldenVerified: false,
+      authorId: user._id,
+      authorName: user.name || "System",
+      authorUsername: user.username || "sponsored",
+      authorAvatar: user.avatar,
+      isGoldenVerified: user.isGoldenVerified || false,
       category: "advertisement",
     });
 
     return res.status(201).json({ success: true, ad });
   } catch (err: any) {
+    console.error("Error creating ad:", err);
     return res.status(500).json({ success: false, message: err.message });
   }
 };

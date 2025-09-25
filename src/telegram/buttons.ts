@@ -73,3 +73,17 @@ export function buildMetaActionsButtons(metaId: string, postId?: string): Telegr
     ],
   ];
 }
+
+// 🔹 Ad Actions Buttons
+export function buildAdActionsButtons(adId: string): TelegramButton[][] {
+  return [
+    [
+      { text: "🗑 Delete Ad", callback_data: `deleteAd_${adId}` },
+      { text: "♻️ Restore Ad", callback_data: `restoreAd_${adId}` },
+    ],
+    [
+      { text: "✅ Resolve Ad", callback_data: `resolveAd_${adId}` },
+      { text: "🔗 View Ad", callback_data: `viewAd_${adId}` },
+    ],
+  ];
+}

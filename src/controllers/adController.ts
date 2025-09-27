@@ -1,13 +1,13 @@
-// controllers/adController.ts
 import { Request, Response } from "express";
 import { PostMeta } from "../models/PostMeta";
+import { uploadBufferToCloudinary } from "../utils/cloudinary";
 
-// ✅ Create Ad
+// ✅ Create Ad (single file upload, Cloudinary)
 export const createAd = async (req: Request, res: Response) => {
   try {
     const { title, description, ctaText, ctaUrl, targeting } = req.body;
 
-    // Build files array from Multer
+    // Build files array from Cloudinary upload
     let files: {
       url: string;
       type: string;
@@ -16,21 +16,48 @@ export const createAd = async (req: Request, res: Response) => {
     }[] = [];
 
     if (req.file) {
-      // Single file upload
+      // Single file upload to Cloudinary
+      const up = await uploadBufferToCloudinary(
+        req.file.buffer,
+        req.file.mimetype,
+        "ad"
+      );
+      // Normalize type for schema
+      let normalizedType = "file";
+      if (req.file.mimetype.startsWith("image/")) normalizedType = "image";
+      else if (req.file.mimetype.startsWith("video/")) normalizedType = "video";
+      else if (req.file.mimetype === "application/pdf") normalizedType = "pdf";
+      else if (req.file.mimetype.includes("word")) normalizedType = "word";
+      else if (req.file.mimetype.includes("presentation")) normalizedType = "ppt";
+
       files.push({
-        url: `/uploads/${req.file.filename}`, // or Cloudinary URL if you use cloud storage
-        type: req.file.mimetype,
+        url: up.url,
+        type: normalizedType,
         name: req.file.originalname,
         size: req.file.size,
       });
     } else if (Array.isArray((req as any).files)) {
-      // Multiple files upload
-      files = (req as any).files.map((f: Express.Multer.File) => ({
-        url: `/uploads/${f.filename}`,
-        type: f.mimetype,
-        name: f.originalname,
-        size: f.size,
-      }));
+      // Multiple files upload to Cloudinary (not used in your current config, but for future support)
+      for (const f of (req as any).files as Express.Multer.File[]) {
+        const up = await uploadBufferToCloudinary(
+          f.buffer,
+          f.mimetype,
+          "ad"
+        );
+        let normalizedType = "file";
+        if (f.mimetype.startsWith("image/")) normalizedType = "image";
+        else if (f.mimetype.startsWith("video/")) normalizedType = "video";
+        else if (f.mimetype === "application/pdf") normalizedType = "pdf";
+        else if (f.mimetype.includes("word")) normalizedType = "word";
+        else if (f.mimetype.includes("presentation")) normalizedType = "ppt";
+
+        files.push({
+          url: up.url,
+          type: normalizedType,
+          name: f.originalname,
+          size: f.size,
+        });
+      }
     }
 
     // Author info from auth middleware

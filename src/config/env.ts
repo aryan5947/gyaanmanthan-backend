@@ -52,5 +52,12 @@ export const env = {
       .split(',')
       .map(s => s.trim())
       .filter(Boolean),
+  },
+
+  // ✅ Web Push VAPID Keys
+  webpush: {
+    publicKey: required('VAPID_PUBLIC_KEY'),
+    privateKey: required('VAPID_PRIVATE_KEY'),
+    email: process.env.VAPID_EMAIL || 'mailto:info@gyaanmanthan.in',
   }
 };

@@ -29,6 +29,9 @@ export function buildUserActionsButtons(user: any): TelegramButton[][] {
       { text: "📊 Stats", callback_data: `stats_${user._id}` },
       { text: "🔐 Logout", callback_data: `logout_${user._id}` },
     ],
+    [
+      { text: "📣 Notify All", callback_data: `notifyall_user_${user._id}` }, // ✅ New button
+    ],
   ];
 }
 
@@ -49,6 +52,9 @@ export function buildPostActionsButtons(postId: string, ownerId?: string): Teleg
     [
       { text: "✅ Resolve Post", callback_data: `resolvePost_${postId}` },
       { text: "📝 Resolve Report", callback_data: `resolveMeta_${postId}` },
+    ],
+    [
+      { text: "📣 Notify All", callback_data: `notifyall_post_${postId}` }, // ✅ New button
     ],
   ];
 }
@@ -71,6 +77,9 @@ export function buildMetaActionsButtons(metaId: string, postId?: string): Telegr
       },
       { text: "🔗 View Post", callback_data: postId ? `view_${postId}` : `viewMeta_${metaId}` },
     ],
+    [
+      { text: "📣 Notify All", callback_data: `notifyall_meta_${metaId}` }, // ✅ New button
+    ],
   ];
 }
 
@@ -84,6 +93,9 @@ export function buildAdActionsButtons(adId: string): TelegramButton[][] {
     [
       { text: "✅ Resolve Ad", callback_data: `resolveAd_${adId}` },
       { text: "🔗 View Ad", callback_data: `viewAd_${adId}` },
+    ],
+    [
+      { text: "📣 Notify All", callback_data: `notifyall_ad_${adId}` }, // ✅ New button
     ],
   ];
 }

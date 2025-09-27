@@ -2,6 +2,7 @@ import { handleActionsMenu, handlePostOwnerMenu, handlePostMetaMenu } from "./me
 import * as userHandlers from "./userHandlers.js";
 import * as postHandlers from "./postHandlers.js";
 import * as metaHandlers from "./metaHandlers.js";
+import { broadcastNotification } from "../../utils/broadcastNotification";
 import { answerCallback, sendTelegramAlertWithButtons } from "../api.js";
 import * as adHandlers from "./adHandlers.js";
 import { logger } from "../logger.js";
@@ -49,6 +50,9 @@ export async function handleTextCommand(update: any) {
 - /rescore <metaId>
 - /normalize <metaId>
 - /flag <metaId>
+
+📣 Broadcast:
+- /notifyall <type> <message>
 
 📢 Ads:
 - /ad <adId>
@@ -218,6 +222,24 @@ export async function handleTextCommand(update: any) {
           callback_query: { id: "manual", message: { chat: { id: chatId } }, data: `viewAd_${arg1}` },
         });
       }
+      // 🔹 Broadcast Notification
+      case "/notifyall": {
+        if (!arg1 || !arg2) {
+         return await answerCallback("manual", "❌ Usage: /notifyall <type> <message>");
+        }
+
+         const type = arg1.toLowerCase();
+         const message = parts.slice(2).join(" "); // supports multi-word message
+
+        await broadcastNotification({
+          type,
+          message,
+          link: "/notifications", // optional default link
+          reason: "Admin Broadcast",
+          details: `Sent by admin via /notifyall`
+        });
+        return await answerCallback("manual", `✅ Notification broadcasted to all users as type *${type}*`);
+        }
 
       default:
         return await answerCallback("manual", `❓ Unknown command: ${command}`);

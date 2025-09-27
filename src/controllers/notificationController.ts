@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
-import { Notification } from "../models/Notification";
+import { Notification } from "../models/Notification.js"; // ✅ Node16+
 import mongoose from "mongoose";
+import { createNotification } from "../utils/createNotification.js"; // ✅ push + DB helper
 
 // GET /api/notifications
 export async function getUserNotifications(req: Request, res: Response) {
@@ -58,5 +59,28 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
   } catch (err) {
     console.error("Error marking all notifications read:", err);
     return res.status(500).json({ ok: false, message: "Failed to update notifications" });
+  }
+}
+
+// POST /api/notifications/push
+export async function pushNotification(req: Request, res: Response) {
+  if (!req.user?._id) return res.status(401).json({ ok: false, message: "Unauthorized" });
+
+  const { type, message, link, reason, details } = req.body;
+
+  try {
+    await createNotification({
+      userId: req.user._id,
+      type,
+      message,
+      reason,
+      details,
+      link
+    });
+
+    return res.status(201).json({ ok: true, message: "Notification created and pushed" });
+  } catch (err) {
+    console.error("Error creating/pushing notification:", err);
+    return res.status(500).json({ ok: false, message: "Failed to push notification" });
   }
 }

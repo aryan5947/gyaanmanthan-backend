@@ -4,6 +4,7 @@ import { logger } from './logger.js';
 import { PostMeta } from '../models/PostMeta.js';
 import { Post } from '../models/Post.js';
 import { User } from '../models/User.js';
+import { broadcastNotification } from '../utils/broadcastNotification.js'; // ✅ Broadcast import
 import { AuditLog } from '../models/AuditLog.js';
 import mongoose from 'mongoose';
 
@@ -102,6 +103,9 @@ function buildUserActionsButtons(user: any): TelegramButton[][] {
     [
       { text: '📊 Stats', callback_data: `stats_${user._id}` },
       { text: '🔐 Logout', callback_data: `logout_${user._id}` }
+    ],
+    [
+      { text: '📣 Notify All', callback_data: `notifyall_user_${user._id}` } // ✅ New button
     ]
   ];
 }
@@ -118,6 +122,9 @@ function buildPostActionsButtons(postId: string, ownerId?: string): TelegramButt
     [
       { text: '✅ Resolve Post', callback_data: `resolvePost_${postId}` },
       { text: '📝 Resolve Report', callback_data: `resolveMeta_${postId}` }
+    ],
+    [
+      { text: '📣 Notify All', callback_data: `notifyall_post_${postId}` } // ✅ New button
     ]
   ];
 }
@@ -147,6 +154,51 @@ export async function handleTelegramUpdate(update: any) {
     const data = update.callback_query.data as string;
     const chatId = update.callback_query.message.chat.id;
     const messageId = update.callback_query.message.message_id;
+
+    // ---------- 📣 NotifyAll Handlers ----------
+    if (data.startsWith("notifyall_user_")) {
+      const userId = data.replace("notifyall_user_", "");
+      await broadcastNotification({
+        type: "user",
+        message: `📣 Broadcast triggered from user ${userId}`,
+        link: `/users/${userId}`,
+        reason: "Admin Broadcast",
+      });
+      return await answerCallback(callbackId, `✅ Broadcast sent for user ${userId}`);
+    }
+
+    if (data.startsWith("notifyall_post_")) {
+      const postId = data.replace("notifyall_post_", "");
+      await broadcastNotification({
+        type: "post",
+        message: `📣 Broadcast triggered for post ${postId}`,
+        link: `/posts/${postId}`,
+        reason: "Admin Broadcast",
+      });
+      return await answerCallback(callbackId, `✅ Broadcast sent for post ${postId}`);
+    }
+
+    if (data.startsWith("notifyall_meta_")) {
+      const metaId = data.replace("notifyall_meta_", "");
+      await broadcastNotification({
+        type: "postmeta",
+        message: `📣 Broadcast triggered for meta ${metaId}`,
+        link: `/meta/${metaId}`,
+        reason: "Admin Broadcast",
+      });
+      return await answerCallback(callbackId, `✅ Broadcast sent for meta ${metaId}`);
+    }
+
+    if (data.startsWith("notifyall_ad_")) {
+      const adId = data.replace("notifyall_ad_", "");
+      await broadcastNotification({
+        type: "ad",
+        message: `📣 Broadcast triggered for ad ${adId}`,
+        link: `/ads/${adId}`,
+        reason: "Admin Broadcast",
+      });
+      return await answerCallback(callbackId, `✅ Broadcast sent for ad ${adId}`);
+    }
 
     // ---------- User Actions Menu ----------
    if (data.startsWith("actions_")) {

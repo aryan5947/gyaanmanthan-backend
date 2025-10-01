@@ -1,5 +1,6 @@
 // controllers/userController.ts
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import { validationResult } from "express-validator";
 import { User } from "../models/User";
 import { Follow } from "../models/Follow";
@@ -343,26 +344,86 @@ export const updateProfile = async (req: Request, res: Response) => {
 // --- DELETE USER PROFILE ---
 export const deleteProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
+    const userId = req.user?.id;
+    console.log("[KWL] DeleteProfile called");
+    console.log("[KWL] Extracted userId:", userId);
+
+    if (!userId) {
+      console.warn("[KWL] User ID missing in request");
+      return res.status(400).json({ message: "User ID missing" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.warn("[KWL] Invalid userId format:", userId);
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    if (
+      !Post ||
+      !PostMeta ||
+      !LikePostMeta ||
+      !PostLike ||
+      !SavedPostMeta ||
+      !SavedPost ||
+      !Comment ||
+      !PostMetaComment ||
+      !Follow
+    ) {
+      console.error("[KWL] One or more models are not defined");
+      return res
+        .status(500)
+        .json({ message: "One or more models are not defined" });
+    }
+
+    console.log("[KWL] Starting cascade delete for user:", userId);
 
     await Promise.all([
-      Post.deleteMany({ authorId: userId }),
-      PostMeta.deleteMany({ authorId: userId }),
-      LikePostMeta.deleteMany({ userId }),
-      PostLike.deleteMany({ userId }),
-      SavedPostMeta.deleteMany({ userId }),
-      SavedPost.deleteMany({ userId }),
-      Comment.deleteMany({ authorId: userId }),
-      PostMetaComment.deleteMany({ authorId: userId }),
-      Follow.deleteMany({ follower: userId }),
-      Follow.deleteMany({ following: userId }),
+      Post.deleteMany({ authorId: userId }).then(() =>
+        console.log("[KWL] Deleted Posts")
+      ),
+      PostMeta.deleteMany({ authorId: userId }).then(() =>
+        console.log("[KWL] Deleted PostMeta")
+      ),
+      LikePostMeta.deleteMany({ userId }).then(() =>
+        console.log("[KWL] Deleted LikePostMeta")
+      ),
+      PostLike.deleteMany({ userId }).then(() =>
+        console.log("[KWL] Deleted PostLike")
+      ),
+      SavedPostMeta.deleteMany({ userId }).then(() =>
+        console.log("[KWL] Deleted SavedPostMeta")
+      ),
+      SavedPost.deleteMany({ userId }).then(() =>
+        console.log("[KWL] Deleted SavedPost")
+      ),
+      Comment.deleteMany({ authorId: userId }).then(() =>
+        console.log("[KWL] Deleted Comments")
+      ),
+      PostMetaComment.deleteMany({ authorId: userId }).then(() =>
+        console.log("[KWL] Deleted PostMetaComments")
+      ),
+      Follow.deleteMany({ follower: userId }).then(() =>
+        console.log("[KWL] Deleted Follows as follower")
+      ),
+      Follow.deleteMany({ following: userId }).then(() =>
+        console.log("[KWL] Deleted Follows as following")
+      ),
     ]);
 
     await User.findByIdAndDelete(userId);
+    console.log("[KWL] Deleted User document");
 
-    res.json({ message: "Profile and all related data deleted successfully" });
-  } catch (error) {
-    console.error("DeleteProfile Error:", error);
-    res.status(500).json({ message: "Server error" });
+    res.json({
+      message: "✅ Profile and all related data deleted successfully",
+    });
+  } catch (error: unknown) {
+    console.error("[KWL] DeleteProfile Error:", error);
+
+    let errMsg = "Unknown error";
+    if (error instanceof Error) {
+      errMsg = error.message;
+    }
+
+    res.status(500).json({ message: "Server error", error: errMsg });
   }
 };

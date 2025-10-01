@@ -64,22 +64,21 @@ followSchema.post("findOneAndDelete", async function (doc) {
 });
 
 // 🛡 Bulk delete safe with wrapper
-followSchema.pre(
-  "deleteMany",
-  withTypedMiddleware(async function (this: any, next) {
-    const filter = this.getFilter();
-    const docs = await model<IFollow>("Follow").find(filter).select("follower following").lean();
+followSchema.pre("deleteMany", async function (this: any) {
+  const filter = this.getFilter();
+  const docs = await model<IFollow>("Follow")
+    .find(filter)
+    .select("follower following")
+    .lean();
 
-    const affectedUserIds = new Set<string>();
-    docs.forEach((d) => {
-      affectedUserIds.add(d.follower.toString());
-      affectedUserIds.add(d.following.toString());
-    });
+  const affectedUserIds = new Set<string>();
+  docs.forEach((d) => {
+    affectedUserIds.add(d.follower.toString());
+    affectedUserIds.add(d.following.toString());
+  });
 
-    this._affectedUserIds = Array.from(affectedUserIds);
-    next();
-  })
-);
+  this._affectedUserIds = Array.from(affectedUserIds);
+});
 
 followSchema.post("deleteMany", async function () {
   const affectedUserIds: string[] = (this as any)._affectedUserIds || [];

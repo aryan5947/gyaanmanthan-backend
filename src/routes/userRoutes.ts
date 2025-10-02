@@ -31,14 +31,14 @@ function requireUser(req: Request, res: Response, next: NextFunction) {
 }
 
 /**
- * @route   GET /users/me
+ * @route   GET /user/me
  * @desc    Get current logged-in user's full profile
  * @access  Private
  */
 router.get('/me', auth, requireUser, getMeWithFullProfile);
 
 /**
- * @route   GET /users/summary
+ * @route   GET /user/summary
  * @desc    Get current user's profile + likes + saves + following in one payload
  * @access  Private
  */
@@ -57,8 +57,14 @@ router.get('/summary', auth, requireUser, async (req: Request, res: Response) =>
         SavedPostMeta.find({ userId }).select("postMetaId createdAt"),
       ]);
 
+    // 🆕 Always false for self-summary
+    const canFollow = false;
+
     res.json({
-      me,
+      me: {
+        ...me?.toObject?.() || me,
+        canFollow, // 🆕 inject here
+      },
       followers,
       following,
       likes: {
@@ -77,14 +83,14 @@ router.get('/summary', auth, requireUser, async (req: Request, res: Response) =>
 });
 
 /**
- * @route   GET /users/connect-telegram-test
+ * @route   GET /user/connect-telegram-test
  * @desc    Generate Telegram bot deep link for account linking (test)
  * @access  Private
  */
 router.get("/connect-telegram-test", auth, requireUser, connectTelegramTest);
 
 /**
- * @route   GET /users/:id
+ * @route   GET /user/:id
  * @desc    Get any user's full profile by ID
  * @access  Private
  */
@@ -97,7 +103,7 @@ router.get(
 );
 
 /**
- * @route   PUT /users
+ * @route   PUT /user
  * @desc    Update logged-in user's profile
  * @access  Private
  */
@@ -132,7 +138,7 @@ router.put(
 );
 
 /**
- * @route   DELETE /users
+ * @route   DELETE /user
  * @desc    Delete logged-in user's profile and all related data
  * @access  Private
  */

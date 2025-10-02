@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { validationResult } from "express-validator";
 import { User } from "../models/User";
 import { Follow } from "../models/Follow";
+import { computeFollowFlags } from "../utils/followFlags";
 import { Post } from "../models/Post";
 import { PostMeta } from "../models/PostMeta";
 import { Like as LikePostMeta } from "../models/LikePostMeta";
@@ -14,7 +15,6 @@ import { Comment } from "../models/Comment";
 import { PostMetaComment } from "../models/postMetaComment";
 import { Notification } from "../models/Notification";
 import { uploadBufferToCloudinary } from "../utils/cloudinary";
-
 // --- GET CURRENT LOGGED-IN USER (FULL PROFILE) ---
 export const getMeWithFullProfile = async (req: Request, res: Response) => {
   try {
@@ -108,6 +108,7 @@ export const getMeWithFullProfile = async (req: Request, res: Response) => {
     return res.json({
       user: {
         ...user,
+        canFollow: false, // 🆕 Always false for self-profile
         stats: {
           posts: user.postsCount,
           followers: user.followersCount,
@@ -152,15 +153,16 @@ export const getProfileWithFullProfile = async (
       .lean();
     if (!targetUser) return res.status(404).json({ message: "User not found" });
 
+    // 🆕 Use helper
     let isFollowing = false;
     let isMutual = false;
-    if (req.user && req.user.id.toString() !== targetUser._id.toString()) {
-      const [currentFollowsTarget, targetFollowsCurrent] = await Promise.all([
-        Follow.exists({ follower: req.user.id, following: targetUser._id }),
-        Follow.exists({ follower: targetUser._id, following: req.user.id }),
-      ]);
-      isFollowing = !!currentFollowsTarget;
-      isMutual = !!currentFollowsTarget && !!targetFollowsCurrent;
+    let canFollow = false;
+
+    if (req.user) {
+      const flags = await computeFollowFlags(req.user.id, targetUser._id as mongoose.Types.ObjectId);
+      isFollowing = flags.isFollowing;
+      isMutual = flags.isMutual;
+      canFollow = flags.canFollow;
     }
 
     const [
@@ -254,6 +256,7 @@ export const getProfileWithFullProfile = async (
         ...targetUser,
         isFollowing,
         isMutual,
+        canFollow, // ✅ from helper
         stats: {
           posts: targetUser.postsCount,
           followers: targetUser.followersCount,
@@ -280,6 +283,7 @@ export const getProfileWithFullProfile = async (
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // --- UPDATE USER PROFILE ---
 export const updateProfile = async (req: Request, res: Response) => {
